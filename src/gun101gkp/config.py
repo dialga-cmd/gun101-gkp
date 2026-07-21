@@ -1,0 +1,9 @@
+PROTOCOL = "GUN-101-GKP"
+VERSION = "2.0"
+RSA_KEY_SIZE = 4096
+RSA_PUBLIC_EXPONENT = 65537
+OAEP_HASH = "SHA-256"
+DEK_LEN = 32             # AES-256 key length in bytes
+AES_NONCE_LEN = 12
+PRIVATE_KEY_PATH = "~/.gun101gkp/private_key.pem"
+TOKEN_PREFIX = "GUN101GKP-v2-"

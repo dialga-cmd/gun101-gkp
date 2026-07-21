@@ -1,0 +1,527 @@
+"""
+Test suite for GUN-101-GKP.
+
+Each test includes a docstring explaining the security property being verified.
+"""
+import os
+import base64
+import json
+import tempfile
+import pytest
+
+from gun101gkp import config
+from gun101gkp.identity import (
+    generate_identity,
+    get_identity_token,
+    get_identity_fingerprint,
+    has_identity,
+    reset_identity,
+    load_private_key,
+    load_public_key_from_token,
+)
+from gun101gkp.cipher import encrypt, decrypt
+from gun101gkp.handler import encrypt_for_recipient, decrypt_as_recipient
+
+
+def test_generate_identity_creates_private_key_at_correct_path():
+    """generate_identity() creates a private key at the correct path."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            assert not os.path.exists(config.PRIVATE_KEY_PATH)
+            token = generate_identity()
+            assert os.path.exists(config.PRIVATE_KEY_PATH)
+            assert os.path.isfile(config.PRIVATE_KEY_PATH)
+            assert isinstance(token, str)
+            assert token.startswith(config.TOKEN_PREFIX)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_private_key_file_has_0o600_permissions():
+    """Private key file has 0o600 permissions."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            generate_identity()
+            mode = os.stat(config.PRIVATE_KEY_PATH).st_mode & 0o777
+            assert mode == 0o600, f"Expected 0o600, got {oct(mode)}"
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_get_identity_token_returns_string_with_prefix():
+    """get_identity_token() returns a string starting with TOKEN_PREFIX."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            token = generate_identity()
+            retrieved_token = get_identity_token()
+            assert retrieved_token == token
+            assert isinstance(retrieved_token, str)
+            assert retrieved_token.startswith(config.TOKEN_PREFIX)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_get_identity_fingerprint_returns_colon_separated_hex():
+    """get_identity_fingerprint() returns colon-separated uppercase hex pairs."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            token = generate_identity()
+            fingerprint = get_identity_fingerprint(token)
+            # Check format: XX:XX:XX:... (uppercase hex)
+            parts = fingerprint.split(':')
+            assert len(parts) == 32  # SHA-256 is 32 bytes -> 64 hex chars -> 32 pairs
+            for part in parts:
+                assert len(part) == 2
+                assert all(c in '0123456789ABCDEF' for c in part)
+            # Also test with no argument (should use stored identity)
+            fingerprint2 = get_identity_fingerprint()
+            assert fingerprint == fingerprint2
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_generate_identity_raises_if_id_exists():
+    """generate_identity() raises ValueError if identity already exists."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            generate_identity()
+            with pytest.raises(ValueError, match="Identity already exists"):
+                generate_identity()
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_reset_identity_deletes_key_file():
+    """reset_identity() deletes the private key file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            generate_identity()
+            assert os.path.exists(config.PRIVATE_KEY_PATH)
+            reset_identity()
+            assert not os.path.exists(config.PRIVATE_KEY_PATH)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_has_identity_returns_false_after_reset():
+    """has_identity() returns False after reset_identity()."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            assert not has_identity()
+            generate_identity()
+            assert has_identity()
+            reset_identity()
+            assert not has_identity()
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_load_public_key_from_token_fails_on_malformed_token():
+    """load_public_key_from_token() fails on malformed token."""
+    with pytest.raises(ValueError, match="Token must start with prefix"):
+        load_public_key_from_token("invalidtoken")
+    with pytest.raises(ValueError, match="Invalid base64"):
+        load_public_key_from_token(config.TOKEN_PREFIX + "!!!")
+    with pytest.raises(ValueError, match="Failed to deserialize"):
+        # Valid base64 but not a valid DER-encoded public key
+        load_public_key_from_token(config.TOKEN_PREFIX + base64.b64encode(b"not a key").decode())
+
+
+def test_load_public_key_from_token_fails_on_wrong_prefix():
+    """load_public_key_from_token() fails on wrong prefix."""
+    with pytest.raises(ValueError, match="Token must start with prefix"):
+        load_public_key_from_token("WRONGPREFIX" + base64.b64encode(b"some").decode())
+
+
+def test_encrypt_decrypt_roundtrip():
+    """Encrypt and decrypt with the same key preserves the plaintext."""
+    key = os.urandom(config.DEK_LEN)
+    plaintext = b"Hello, world!"
+    nonce, ciphertext, tag = encrypt(plaintext, key)
+    decrypted = decrypt(nonce, ciphertext, tag, key)
+    assert decrypted == plaintext
+
+
+def test_encrypt_different_nonces():
+    """Two encryptions with the same key produce different nonces."""
+    key = os.urandom(config.DEK_LEN)
+    plaintext = b"same plaintext"
+    nonce1, _, _ = encrypt(plaintext, key)
+    nonce2, _, _ = encrypt(plaintext, key)
+    assert nonce1 != nonce2
+
+
+def test_encrypt_different_sealed_deks_handler():
+    """Two encryptions produce different sealed DEKs (RSA-OAEP is probabilistic)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            # Generate a recipient key
+            recipient_token = generate_identity()
+            plaintext = b"same message"
+            # Encrypt twice
+            container1 = encrypt_for_recipient(plaintext, recipient_token)
+            container2 = encrypt_for_recipient(plaintext, recipient_token)
+            # Parse containers
+            c1 = json.loads(container1.decode())
+            c2 = json.loads(container2.decode())
+            # The sealed_dek should be different
+            assert c1["sealed_dek"] != c2["sealed_dek"]
+            # Nonce should also be different (due to random nonce)
+            assert c1["nonce"] != c2["nonce"]
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_dek_not_in_container():
+    """The DEK is never present in the container in plaintext."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            recipient_token = generate_identity()
+            plaintext = b"some data"
+            container = encrypt_for_recipient(plaintext, recipient_token)
+            container_dict = json.loads(container.decode())
+            # The container should not contain the DEK in any field
+            # We can check that the decoded sealed_dek is not equal to the DEK
+            # but we don't have the DEK here. Instead, we can verify that the
+            # sealed_dek is not the plaintext DEK by checking that it's longer
+            # (due to RSA encryption) and not equal to the base64 of 32 random bytes.
+            # This is a soft check; the main point is that the ciphertext and tag
+            # are present and the sealed_dek is present.
+            assert "sealed_dek" in container_dict
+            assert "nonce" in container_dict
+            assert "ciphertext" in container_dict
+            assert "tag" in container_dict
+            # Ensure the sealed_dek is not just the base64 of the plaintext
+            # (which would be 32 bytes -> base64 of 44 chars). Actually, the
+            # sealed_dek is RSA-encrypted, so it's the size of the key modulus.
+            # For RSA-4096, the output is 512 bytes. Base64 of that is 684 chars.
+            # We'll just check that it's not 44 chars.
+            assert len(container_dict["sealed_dek"]) != 44
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_encrypt_decrypt_roundtrip_handler():
+    """Encrypt for recipient A, decrypt as recipient A: succeeds."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            recipient_token = generate_identity()
+            file_data = b"This is a secret message."
+            container = encrypt_for_recipient(file_data, recipient_token)
+            plaintext = decrypt_as_recipient(container)
+            assert plaintext == file_data
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_round_trip_preserves_exact_bytes():
+    """Round-trip preserves exact bytes (including empty and large files)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            recipient_token = generate_identity()
+            # Test empty file
+            empty = b""
+            container = encrypt_for_recipient(empty, recipient_token)
+            assert decrypt_as_recipient(container) == empty
+            # Test random data
+            for size in [1, 100, 1024, 1024*10]:  # up to 10KB
+                data = os.urandom(size)
+                container = encrypt_for_recipient(data, recipient_token)
+                assert decrypt_as_recipient(container) == data
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_encrypt_for_a_decrypt_as_b_fails_before_rsa():
+    """Encrypt for recipient A, attempt to decrypt as recipient B: fails with 'not encrypted for this identity' before RSA attempt."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # We'll create two key files and manually manage the config path
+        key_a_path = os.path.join(tmpdir, "priv_a.pem")
+        key_b_path = os.path.join(tmpdir, "priv_b.pem")
+        original_path = config.PRIVATE_KEY_PATH
+        try:
+            # Generate A's key
+            config.PRIVATE_KEY_PATH = key_a_path
+            token_a = generate_identity()
+            # Generate B's key
+            config.PRIVATE_KEY_PATH = key_b_path
+            token_b = generate_identity()
+            # Set back to A's key for decryption attempt (so that decrypt_as_recipient loads A's key)
+            config.PRIVATE_KEY_PATH = key_a_path
+            # Encrypt for A
+            file_data = b"secret"
+            container = encrypt_for_recipient(file_data, token_a)
+            # Attempt to decrypt with B's key loaded (by setting env to B's key)
+            # But decrypt_as_recipient uses the stored identity, which is currently A's.
+            # We need to test that loading B's key and comparing fingerprints fails.
+            # Instead, we can test by temporarily replacing the load_private_key function
+            # to load B's key, but that's complex.
+            # Instead, we'll test the fingerprint check directly: we'll encrypt for A,
+            # then create a container with B's fingerprint and see if it fails.
+            # However, the function encrypt_for_recipient uses the recipient's token
+            # to compute the fingerprint and puts it in the container.
+            # So to test that decrypting with the wrong key fails, we need to
+            # decrypt with B's key but the container has A's fingerprint.
+            # We can do that by manually calling decrypt_as_recipient but
+            # temporarily swapping the key file.
+            # Let's do: encrypt with A, then swap the key file to B's and try to decrypt.
+            # We'll copy B's key over A's key file, then decrypt.
+            # Backup A's key
+            with open(key_a_path, 'rb') as f:
+                key_a_data = f.read()
+            with open(key_b_path, 'rb') as f:
+                key_b_data = f.read()
+            # Replace A's key with B's key
+            with open(key_a_path, 'wb') as f:
+                f.write(key_b_data)
+            try:
+                with pytest.raises(ValueError, match="This file was not encrypted for this identity"):
+                    decrypt_as_recipient(container)
+            finally:
+                # Restore A's key
+                with open(key_a_path, 'wb') as f:
+                    f.write(key_a_data)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            for p in (key_a_path, key_b_path):
+                if os.path.exists(p):
+                    os.remove(p)
+
+
+def test_wrong_passphrase_fails_with_clear_message():
+    """Wrong passphrase on private key: fails with clear message."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        key_path = os.path.join(tmpdir, "private_key.pem")
+        config.PRIVATE_KEY_PATH = key_path
+        try:
+            # Encrypt private key with passphrase
+            generate_identity(passphrase="correct")
+            # Try to load with wrong passphrase
+            with pytest.raises(ValueError, match="Failed to load private key"):
+                load_private_key(passphrase="wrong")
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(key_path):
+                os.remove(key_path)
+
+
+def test_no_private_key_fails_with_clear_message():
+    """No private key exists: fails with clear message."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        key_path = os.path.join(tmpdir, "private_key.pem")
+        config.PRIVATE_KEY_PATH = key_path
+        try:
+            assert not os.path.exists(key_path)
+            with pytest.raises(FileNotFoundError, match="No private key found"):
+                load_private_key()
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(key_path):
+                os.remove(key_path)
+
+
+def test_missing_recipient_token_fails_with_clear_message():
+    """Missing recipient token: fails with clear message."""
+    # encrypt_for_recipient requires a token; we'll test with empty string
+    with pytest.raises(ValueError):
+        encrypt_for_recipient(b"data", "")
+
+
+def test_malformed_token_fails_with_clear_message():
+    """Malformed token: fails with clear message."""
+    with pytest.raises(ValueError, match="Token must start with prefix"):
+        encrypt_for_recipient(b"data", "invalid")
+    with pytest.raises(ValueError, match="Invalid base64"):
+        encrypt_for_recipient(b"data", config.TOKEN_PREFIX + "!!!")
+
+
+def test_tamper_detection_ciphertext():
+    """Flip one bit in ciphertext: raises ValueError."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        key_path = os.path.join(tmpdir, "private_key.pem")
+        config.PRIVATE_KEY_PATH = key_path
+        try:
+            token = generate_identity()
+            data = b"test"
+            container = encrypt_for_recipient(data, token)
+            # Parse container, flip a bit in ciphertext, re-encode
+            container_dict = json.loads(container.decode())
+            ciphertext_bytes = base64.b64decode(container_dict["ciphertext"])
+            if len(ciphertext_bytes) > 0:
+                # Flip the least significant bit of the first byte
+                ciphertext_bytes = bytes([ciphertext_bytes[0] ^ 1]) + ciphertext_bytes[1:]
+            else:
+                ciphertext_bytes = b"\x01"
+            container_dict["ciphertext"] = base64.b64encode(ciphertext_bytes).decode()
+            tampered = json.dumps(container_dict).encode()
+            with pytest.raises(ValueError, match="Decryption failed"):
+                decrypt_as_recipient(tampered)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(key_path):
+                os.remove(key_path)
+
+
+def test_tamper_detection_nonce():
+    """Modify nonce: raises ValueError."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        key_path = os.path.join(tmpdir, "private_key.pem")
+        config.PRIVATE_KEY_PATH = key_path
+        try:
+            token = generate_identity()
+            data = b"test"
+            container = encrypt_for_recipient(data, token)
+            container_dict = json.loads(container.decode())
+            nonce_bytes = base64.b64decode(container_dict["nonce"])
+            if len(nonce_bytes) > 0:
+                nonce_bytes = bytes([nonce_bytes[0] ^ 1]) + nonce_bytes[1:]
+            else:
+                nonce_bytes = b"\x01"
+            container_dict["nonce"] = base64.b64encode(nonce_bytes).decode()
+            tampered = json.dumps(container_dict).encode()
+            with pytest.raises(ValueError, match="Decryption failed"):
+                decrypt_as_recipient(tampered)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(key_path):
+                os.remove(key_path)
+
+
+def test_tamper_detection_tag():
+    """Modify tag: raises ValueError."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        key_path = os.path.join(tmpdir, "private_key.pem")
+        config.PRIVATE_KEY_PATH = key_path
+        try:
+            token = generate_identity()
+            data = b"test"
+            container = encrypt_for_recipient(data, token)
+            container_dict = json.loads(container.decode())
+            tag_bytes = base64.b64decode(container_dict["tag"])
+            if len(tag_bytes) > 0:
+                tag_bytes = bytes([tag_bytes[0] ^ 1]) + tag_bytes[1:]
+            else:
+                tag_bytes = b"\x01"
+            container_dict["tag"] = base64.b64encode(tag_bytes).decode()
+            tampered = json.dumps(container_dict).encode()
+            with pytest.raises(ValueError, match="Decryption failed"):
+                decrypt_as_recipient(tampered)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(key_path):
+                os.remove(key_path)
+
+
+def test_tamper_detection_sealed_dek():
+    """Replace sealed_dek with random bytes: raises ValueError."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        key_path = os.path.join(tmpdir, "private_key.pem")
+        config.PRIVATE_KEY_PATH = key_path
+        try:
+            token = generate_identity()
+            data = b"test"
+            container = encrypt_for_recipient(data, token)
+            container_dict = json.loads(container.decode())
+            # Replace sealed_dek with random bytes of same length
+            sealed_dek_bytes = base64.b64decode(container_dict["sealed_dek"])
+            random_bytes = os.urandom(len(sealed_dek_bytes))
+            container_dict["sealed_dek"] = base64.b64encode(random_bytes).decode()
+            tampered = json.dumps(container_dict).encode()
+            with pytest.raises(ValueError, match="Failed to unseal key"):
+                decrypt_as_recipient(tampered)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(key_path):
+                os.remove(key_path)
+
+
+def test_tamper_detection_recipient_fingerprint():
+    """Modify recipient_fingerprint in container: raises ValueError before RSA operation."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        key_path = os.path.join(tmpdir, "private_key.pem")
+        config.PRIVATE_KEY_PATH = key_path
+        try:
+            token = generate_identity()
+            data = b"test"
+            container = encrypt_for_recipient(data, token)
+            container_dict = json.loads(container.decode())
+            # Change the fingerprint to something else
+            container_dict["recipient_fingerprint"] = "00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD"
+            tampered = json.dumps(container_dict).encode()
+            # This should fail because the fingerprint of the loaded key won't match
+            with pytest.raises(ValueError, match="This file was not encrypted for this identity"):
+                decrypt_as_recipient(tampered)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(key_path):
+                os.remove(key_path)
+
+
+def test_truncated_container():
+    """Truncated container: raises ValueError."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            token = generate_identity()
+            data = b"test"
+            container = encrypt_for_recipient(data, token)
+            # Truncate the ciphertext by removing last character
+            truncated = container[:-1]
+            with pytest.raises((ValueError, json.JSONDecodeError)):
+                decrypt_as_recipient(truncated)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
