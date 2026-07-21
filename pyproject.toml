@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gun101-gkp"
-version = "3.0.0"
+version = "3.0.1"
 description = "Ghost Key Protocol for passwordless asymmetric encryption using RSA-4096 and AES-256-GCM"
 readme = "README.md"
 requires-python = ">=3.8"
