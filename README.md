@@ -103,7 +103,7 @@ If your private key is encrypted with a passphrase, you will be prompted for it.
 ## Installation
 
 ```bash
-pip install gun101gkp
+pip install gun101-gkp
 ```
 
 ## Algorithm details

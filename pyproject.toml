@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gun101gkp"
-version = "2.0"
+name = "gun101-gkp"
+version = "3.0.0"
 description = "Ghost Key Protocol for passwordless asymmetric encryption using RSA-4096 and AES-256-GCM"
 readme = "README.md"
 requires-python = ">=3.8"
