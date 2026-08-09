@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 
-from .config import PROTOCOL, VERSION, DEK_LEN
+from .config import PROTOCOL, FORMAT_VERSION, DEK_LEN
 from .identity import load_private_key, load_public_key_from_token, get_identity_fingerprint
 from .cipher import encrypt as aes_encrypt, decrypt as aes_decrypt
 
@@ -62,7 +62,7 @@ def encrypt_for_recipient(file_data: bytes, recipient_token: str) -> bytes:
     dek = os.urandom(DEK_LEN)
 
     # Encrypt file data with DEK using AES-256-GCM
-    aad = _compute_aad(PROTOCOL, VERSION, recipient_fingerprint)
+    aad = _compute_aad(PROTOCOL, FORMAT_VERSION, recipient_fingerprint)
     nonce, ciphertext, tag = aes_encrypt(file_data, dek, associated_data=aad)
 
     # Seal DEK with RSA-OAEP
@@ -84,7 +84,7 @@ def encrypt_for_recipient(file_data: bytes, recipient_token: str) -> bytes:
     # Build container
     container = {
         "protocol": PROTOCOL,
-        "version": VERSION,
+        "version": FORMAT_VERSION,
         "recipient_fingerprint": recipient_fingerprint,
         "sealed_dek": base64.b64encode(sealed_dek).decode('ascii'),
         "nonce": base64.b64encode(nonce).decode('ascii'),
@@ -120,7 +120,7 @@ def decrypt_as_recipient(container_data: bytes, passphrase: str = None) -> bytes
     # Verify protocol and version
     if container.get("protocol") != PROTOCOL:
         raise ValueError("Decryption failed")
-    if container.get("version") != VERSION:
+    if container.get("version") != FORMAT_VERSION:
         raise ValueError("Decryption failed")
 
     # Load recipient's private key
