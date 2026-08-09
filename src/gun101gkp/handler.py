@@ -9,6 +9,25 @@ from .config import PROTOCOL, VERSION, DEK_LEN
 from .identity import load_private_key, load_public_key_from_token, get_identity_fingerprint
 from .cipher import encrypt as aes_encrypt, decrypt as aes_decrypt
 
+AAD_VERSION = "2.1"
+
+def _compute_aad(protocol: str, version: str, recipient_fingerprint: str) -> bytes:
+    """Compute associated data for AES-GCM from protocol, version, and recipient fingerprint."""
+    # Use compact JSON (no spaces) to ensure consistent encoding
+    aad_dict = {
+        "protocol": protocol,
+        "version": version,
+        "recipient_fingerprint": recipient_fingerprint
+    }
+    return json.dumps(aad_dict, separators=(',', ':')).encode('utf-8')
+
+def _rsa_oaep_padding():
+    return padding.OAEP(
+        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+        algorithm=hashes.SHA256(),
+        label=None
+    )
+
 def encrypt_for_recipient(file_data: bytes, recipient_token: str) -> bytes:
     """Encrypt file data for a recipient using their identity token.
 
@@ -32,28 +51,28 @@ def encrypt_for_recipient(file_data: bytes, recipient_token: str) -> bytes:
         public_key = load_public_key_from_token(recipient_token)
     except ValueError as e:
         # Re-raise ValueError from load_public_key_from_token without extra prefix
-        raise ValueError(str(e)) from e
+        raise
     except Exception as e:
-        raise ValueError(f"Invalid recipient token: {e}") from e
+        raise ValueError("Invalid recipient token") from e
+
+    # Compute recipient fingerprint
+    recipient_fingerprint = get_identity_fingerprint(recipient_token)
 
     # Generate random DEK
     dek = os.urandom(DEK_LEN)
 
     # Encrypt file data with DEK using AES-256-GCM
-    nonce, ciphertext, tag = aes_encrypt(file_data, dek)
+    aad = _compute_aad(PROTOCOL, VERSION, recipient_fingerprint)
+    nonce, ciphertext, tag = aes_encrypt(file_data, dek, associated_data=aad)
 
     # Seal DEK with RSA-OAEP
     try:
         sealed_dek = public_key.encrypt(
             dek,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
+            _rsa_oaep_padding()
         )
     except Exception as e:
-        raise ValueError(f"Failed to seal DEK: {e}") from e
+        raise ValueError("Failed to seal DEK") from e
 
     # Compute recipient fingerprint from token
     recipient_fingerprint = get_identity_fingerprint(recipient_token)
@@ -96,7 +115,7 @@ def decrypt_as_recipient(container_data: bytes, passphrase: str = None) -> bytes
     try:
         container = json.loads(container_data.decode('utf-8'))
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        raise ValueError(f"Invalid container format: {e}") from e
+        raise ValueError("Invalid container format") from e
 
     # Verify protocol and version
     if container.get("protocol") != PROTOCOL:
@@ -110,7 +129,7 @@ def decrypt_as_recipient(container_data: bytes, passphrase: str = None) -> bytes
     except FileNotFoundError:
         raise FileNotFoundError("No private key found")
     except ValueError as e:
-        raise ValueError(f"Failed to load private key: {e}") from e
+        raise ValueError("Failed to load private key") from e
 
     # Compute fingerprint of loaded public key and compare with container
     public_key = private_key.public_key()
@@ -124,26 +143,28 @@ def decrypt_as_recipient(container_data: bytes, passphrase: str = None) -> bytes
     fingerprint_formatted = ':'.join([fingerprint[i:i+2] for i in range(0, len(fingerprint), 2)])
     container_fingerprint = container.get("recipient_fingerprint")
     if fingerprint_formatted != container_fingerprint:
-        raise ValueError("This file was not encrypted for this identity.")
+        # Wipe dek before raising
+        dek = bytes(DEK_LEN)
+        del dek
+        raise ValueError("Decryption failed")
 
     # Decode sealed DEK
     try:
         sealed_dek = base64.b64decode(container["sealed_dek"])
     except Exception as e:
-        raise ValueError(f"Invalid sealed_dek encoding: {e}") from e
+        raise ValueError("Invalid sealed_dek encoding") from e
 
     # Unseal DEK with RSA-OAEP
     try:
         dek = private_key.decrypt(
             sealed_dek,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
+            _rsa_oaep_padding()
         )
     except Exception as e:
-        raise ValueError(f"Failed to unseal key: {e}") from e
+        # Wipe dek before raising
+        dek = bytes(DEK_LEN)
+        del dek
+        raise ValueError("Decryption failed") from e
 
     # Decode nonce, ciphertext, tag
     try:
@@ -151,16 +172,22 @@ def decrypt_as_recipient(container_data: bytes, passphrase: str = None) -> bytes
         ciphertext = base64.b64decode(container["ciphertext"])
         tag = base64.b64decode(container["tag"])
     except Exception as e:
-        raise ValueError(f"Invalid base64 in container fields: {e}") from e
+        raise ValueError("Invalid base64 in container fields") from e
+
+    # Determine whether to use associated data based on version
+    if container["version"] == "2.0":
+        associated_data = None
+    else:
+        associated_data = _compute_aad(container["protocol"], container["version"], container["recipient_fingerprint"])
 
     # Decrypt file data with DEK
     try:
-        plaintext = aes_decrypt(nonce, ciphertext, tag, dek)
+        plaintext = aes_decrypt(nonce, ciphertext, tag, dek, associated_data=associated_data)
     except ValueError as e:
         # Wipe dek before raising
         dek = bytes(DEK_LEN)
         del dek
-        raise ValueError(f"Decryption failed: {e}") from e
+        raise ValueError("Decryption failed") from e
 
     # Wipe DEK from memory
     dek = bytes(DEK_LEN)

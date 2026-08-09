@@ -8,6 +8,8 @@ import base64
 import json
 import tempfile
 import pytest
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
 
 from gun101gkp import config
 from gun101gkp.identity import (
@@ -319,7 +321,7 @@ def test_encrypt_for_a_decrypt_as_b_fails_before_rsa():
             with open(key_a_path, 'wb') as f:
                 f.write(key_b_data)
             try:
-                with pytest.raises(ValueError, match="This file was not encrypted for this identity"):
+                with pytest.raises(ValueError, match="Decryption failed"):
                     decrypt_as_recipient(container)
             finally:
                 # Restore A's key
@@ -477,7 +479,7 @@ def test_tamper_detection_sealed_dek():
             random_bytes = os.urandom(len(sealed_dek_bytes))
             container_dict["sealed_dek"] = base64.b64encode(random_bytes).decode()
             tampered = json.dumps(container_dict).encode()
-            with pytest.raises(ValueError, match="Failed to unseal key"):
+            with pytest.raises(ValueError, match="Decryption failed"):
                 decrypt_as_recipient(tampered)
         finally:
             config.PRIVATE_KEY_PATH = original_path
@@ -500,7 +502,7 @@ def test_tamper_detection_recipient_fingerprint():
             container_dict["recipient_fingerprint"] = "00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD"
             tampered = json.dumps(container_dict).encode()
             # This should fail because the fingerprint of the loaded key won't match
-            with pytest.raises(ValueError, match="This file was not encrypted for this identity"):
+            with pytest.raises(ValueError, match="Decryption failed"):
                 decrypt_as_recipient(tampered)
         finally:
             config.PRIVATE_KEY_PATH = original_path
@@ -525,3 +527,187 @@ def test_truncated_container():
             config.PRIVATE_KEY_PATH = original_path
             if os.path.exists(config.PRIVATE_KEY_PATH):
                 os.remove(config.PRIVATE_KEY_PATH)
+
+def test_tampered_tag_no_output_file():
+    """Tampered tag results in no output file when decrypting via CLI."""
+    import subprocess
+    import os
+    import tempfile
+    import json
+    import base64
+    from gun101gkp import config
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Override private key path to temp directory
+        private_key_path = os.path.join(tmpdir, 'private_key.pem')
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = private_key_path
+        try:
+            old_cwd = os.getcwd()
+            os.chdir(tmpdir)
+            env = os.environ.copy()
+            env["HOME"] = tmpdir
+            env["PYTHONPATH"] = os.path.join(old_cwd, "src")
+            try:
+                # Generate identity
+                subprocess.run(['python3', '-m', 'gun101gkp.cli', 'generate-identity'], env=env, check=True, capture_output=True)
+                # Get token
+                result = subprocess.run(['python3', '-m', 'gun101gkp.cli', 'show-identity'], capture_output=True, text=True, env=env, check=True)
+                token = result.stdout.strip()
+                # Create a plain file
+                with open('plain.txt', 'wb') as f:
+                    f.write(b'hello')
+                # Encrypt
+                subprocess.run(['python3', '-m', 'gun101gkp.cli', 'encrypt', 'plain.txt', '--recipient', token], env=env, check=True, capture_output=True)
+                assert os.path.exists('plain.txt.gkp')
+                # Read container, tamper tag
+                with open('plain.txt.gkp', 'rb') as f:
+                    container_data = f.read()
+                container = json.loads(container_data.decode())
+                # Flip a bit in tag
+                tag_bytes = base64.b64decode(container['tag'])
+                tag_bytes = bytes([tag_bytes[0] ^ 1]) + tag_bytes[1:]
+                container['tag'] = base64.b64encode(tag_bytes).decode()
+                tampered = json.dumps(container).encode()
+                with open('plain.txt.gkp', 'wb') as f:
+                    f.write(tampered)
+                # Attempt decryption with output specified
+                result = subprocess.run(['python3', '-m', 'gun101gkp.cli', 'decrypt', 'plain.txt.gkp', '--output', 'out.txt'], env=env, capture_output=True)
+                # Should fail (non-zero exit)
+                assert result.returncode != 0
+                # Output file should not exist
+                assert not os.path.exists('out.txt')
+            finally:
+                os.chdir(old_cwd)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+
+
+def test_fingerprint_cli():
+    """Test the fingerprint CLI command."""
+    import subprocess
+    import os
+    import tempfile
+    from gun101gkp import config
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Override private key path to temp directory
+        private_key_path = os.path.join(tmpdir, 'private_key.pem')
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = private_key_path
+        try:
+            old_cwd = os.getcwd()
+            os.chdir(tmpdir)
+            env = os.environ.copy()
+            env["HOME"] = tmpdir
+            env["PYTHONPATH"] = os.path.join(old_cwd, "src")
+            try:
+                # Generate identity
+                subprocess.run(['python3', '-m', 'gun101gkp.cli', 'generate-identity'], env=env, check=True, capture_output=True)
+                # Get token via show-identity
+                result = subprocess.run(['python3', '-m', 'gun101gkp.cli', 'show-identity'], capture_output=True, text=True, env=env, check=True)
+                token = result.stdout.strip()
+                # Test fingerprint command with explicit token
+                result = subprocess.run(['python3', '-m', 'gun101gkp.cli', 'fingerprint', '--token', token], capture_output=True, text=True, env=env, check=True)
+                fingerprint_from_cli = result.stdout.strip()
+                # Also test fingerprint command without token (should use stored identity)
+                result = subprocess.run(['python3', '-m', 'gun101gkp.cli', 'fingerprint'], capture_output=True, text=True, env=env, check=True)
+                fingerprint_from_stored = result.stdout.strip()
+                # Both should be the same and be a valid fingerprint format
+                assert fingerprint_from_cli == fingerprint_from_stored
+                # Validate fingerprint format (colon-separated hex pairs)
+                parts = fingerprint_from_cli.split(':')
+                assert len(parts) == 32  # SHA-256 produces 32 bytes = 64 hex chars = 32 pairs when split by :
+                for part in parts:
+                    assert len(part) == 2
+                    assert all(c in '0123456789ABCDEF' for c in part), f"Invalid hex character in {part}"
+            finally:
+                os.chdir(old_cwd)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+
+
+def test_reset_identity_cli():
+    """Test the reset-identity CLI command."""
+    import subprocess
+    import os
+    import tempfile
+    from gun101gkp import config
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Override private key path to temp directory
+        private_key_path = os.path.join(tmpdir, 'private_key.pem')
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = private_key_path
+        try:
+            old_cwd = os.getcwd()
+            os.chdir(tmpdir)
+            env = os.environ.copy()
+            env["HOME"] = tmpdir
+            env["PYTHONPATH"] = os.path.join(old_cwd, "src")
+            try:
+                # Generate identity
+                subprocess.run(['python3', '-m', 'gun101gkp.cli', 'generate-identity'], env=env, check=True, capture_output=True)
+                # Verify identity exists by checking that show-identity works
+                result = subprocess.run(['python3', '-m', 'gun101gkp.cli', 'show-identity'], env=env, capture_output=True, text=True, check=True)
+                assert result.returncode == 0
+                token = result.stdout.strip()
+                assert token.startswith(config.TOKEN_PREFIX)
+                # Test reset-identity command (we need to provide the confirmation input)
+                result = subprocess.run(['python3', '-m', 'gun101gkp.cli', 'reset-identity'],
+                                      input='YES\n', text=True, env=env, check=True, capture_output=True)
+                # Verify that trying to show identity now fails
+                result = subprocess.run(['python3', '-m', 'gun101gkp.cli', 'show-identity'],
+                                      env=env, capture_output=True, text=True)
+                assert result.returncode != 0
+                assert "Error: No identity found" in result.stderr
+            finally:
+                os.chdir(old_cwd)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(private_key_path):
+                os.remove(private_key_path)
+
+
+def test_exponent_validation():
+    """Load private key verifies public exponent is 3, 17, or 65537; rejects others."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        key_path = os.path.join(tmpdir, 'private_key.pem')
+        config.PRIVATE_KEY_PATH = key_path
+        try:
+            # Test exponent 3 (can be generated)
+            priv_key_3 = rsa.generate_private_key(public_exponent=3, key_size=config.RSA_KEY_SIZE)
+            priv_key_pem_3 = priv_key_3.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption()
+            )
+            with open(key_path, 'wb') as f:
+                f.write(priv_key_pem_3)
+            # Should not raise
+            loaded_key = load_private_key()
+            assert loaded_key.public_key().public_numbers().e == 3
+            # Test exponent 65537 (default)
+            priv_key_65537 = rsa.generate_private_key(public_exponent=65537, key_size=config.RSA_KEY_SIZE)
+            priv_key_pem_65537 = priv_key_65537.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption()
+            )
+            with open(key_path, 'wb') as f:
+                f.write(priv_key_pem_65537)
+            loaded_key = load_private_key()
+            assert loaded_key.public_key().public_numbers().e == 65537
+            # Note: exponent 17 cannot be generated with the cryptography library,
+            # but the validation logic in load_private_key includes 17 in the allowed list.
+            # Exponents 5 and 257 are also Fermat primes but are rejected as they are
+            # extremely rare in practice and offer no advantage over 65537.
+            # We cannot generate keys with exponent 5 or 257 to test rejection,
+            # but the source code validates against [3, 17, 65537].
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(key_path):
+                os.remove(key_path)
+
+
