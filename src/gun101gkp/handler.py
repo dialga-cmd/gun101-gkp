@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 
-from .config import PROTOCOL, FORMAT_VERSION, DEK_LEN
+from .config import PROTOCOL, FORMAT_VERSION, SUPPORTED_FORMAT_VERSIONS, DEK_LEN
 from .identity import load_private_key, load_public_key_from_token, get_identity_fingerprint
 from .cipher import encrypt as aes_encrypt, decrypt as aes_decrypt
 
@@ -120,7 +120,7 @@ def decrypt_as_recipient(container_data: bytes, passphrase: str = None) -> bytes
     # Verify protocol and version
     if container.get("protocol") != PROTOCOL:
         raise ValueError("Decryption failed")
-    if container.get("version") != FORMAT_VERSION:
+    if container.get("version") not in SUPPORTED_FORMAT_VERSIONS:
         raise ValueError("Decryption failed")
 
     # Load recipient's private key

@@ -8,8 +8,8 @@ import base64
 import json
 import tempfile
 import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives import serialization, hashes
 
 from gun101gkp import config
 from gun101gkp.identity import (
@@ -746,5 +746,162 @@ def test_exponent_validation():
             config.PRIVATE_KEY_PATH = original_path
             if os.path.exists(key_path):
                 os.remove(key_path)
+
+
+def test_decrypt_version_2_0_container():
+    """A container with format version \"2.0\" (no AAD) can be decrypted."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            # Generate recipient identity
+            recipient_token = generate_identity()
+            # Create some file data
+            file_data = b"This is a test file for version 2.0 decryption."
+
+            # --- Manually create a version 2.0 container (as old code would have) ---
+            # Load recipient public key
+            public_key = load_public_key_from_token(recipient_token)
+            # Generate random DEK
+            dek = os.urandom(config.DEK_LEN)
+            # Encrypt file data with DEK using AES-256-GCM (no associated data for v2.0)
+            nonce, ciphertext, tag = encrypt(file_data, dek, associated_data=None)
+            # Seal DEK with RSA-OAEP
+            sealed_dek = public_key.encrypt(
+                dek,
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                    algorithm=hashes.SHA256(),
+                    label=None
+                )
+            )
+            # Compute recipient fingerprint
+            recipient_fingerprint = get_identity_fingerprint(recipient_token)
+            # Build container
+            container = {
+                "protocol": config.PROTOCOL,
+                "version": "2.0",
+                "recipient_fingerprint": recipient_fingerprint,
+                "sealed_dek": base64.b64encode(sealed_dek).decode('ascii'),
+                "nonce": base64.b64encode(nonce).decode('ascii'),
+                "ciphertext": base64.b64encode(ciphertext).decode('ascii'),
+                "tag": base64.b64encode(tag).decode('ascii')
+            }
+            container_data = json.dumps(container).encode('utf-8')
+
+            # Decrypt as recipient
+            decrypted = decrypt_as_recipient(container_data)
+            assert decrypted == file_data
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_decrypt_version_2_1_container():
+    """A container with format version \"2.1\" (with AAD) can be decrypted."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            # Generate recipient identity
+            recipient_token = generate_identity()
+            # Create some file data
+            file_data = b"This is a test file for version 2.1 decryption."
+
+            # Use current encrypt_for_recipient (which writes FORMAT_VERSION and uses AAD)
+            container_data = encrypt_for_recipient(file_data, recipient_token)
+
+            # Decrypt as recipient
+            decrypted = decrypt_as_recipient(container_data)
+            assert decrypted == file_data
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_reject_unsupported_format_version():
+    """A container with an unsupported format version is rejected."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            # Generate recipient identity
+            recipient_token = generate_identity()
+            # Create some file data
+            file_data = b"This is a test file for unsupported version."
+
+            # --- Manually create a container with version "9.9" ---
+            # Load recipient public key
+            public_key = load_public_key_from_token(recipient_token)
+            # Generate random DEK
+            dek = os.urandom(config.DEK_LEN)
+            # Encrypt file data with DEK using AES-256-GCM (we'll use AAD as per current, but version is fake)
+            # We'll use the current AAD computation for consistency, but the version is not 2.0 or 2.1.
+            # However, note that the AAD computation uses the version from the container.
+            # We'll compute AAD with the fake version to match what the decrypt function would do.
+            recipient_fingerprint = get_identity_fingerprint(recipient_token)
+            aad_dict = {
+                "protocol": config.PROTOCOL,
+                "version": "9.9",  # fake version
+                "recipient_fingerprint": recipient_fingerprint
+            }
+            associated_data = json.dumps(aad_dict, separators=(',', ':')).encode('utf-8')
+            nonce, ciphertext, tag = encrypt(file_data, dek, associated_data=associated_data)
+            # Seal DEK with RSA-OAEP
+            sealed_dek = public_key.encrypt(
+                dek,
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                    algorithm=hashes.SHA256(),
+                    label=None
+                )
+            )
+            # Build container
+            container = {
+                "protocol": config.PROTOCOL,
+                "version": "9.9",
+                "recipient_fingerprint": recipient_fingerprint,
+                "sealed_dek": base64.b64encode(sealed_dek).decode('ascii'),
+                "nonce": base64.b64encode(nonce).decode('ascii'),
+                "ciphertext": base64.b64encode(ciphertext).decode('ascii'),
+                "tag": base64.b64encode(tag).decode('ascii')
+            }
+            container_data = json.dumps(container).encode('utf-8')
+
+            # Decrypt should raise ValueError("Decryption failed")
+            with pytest.raises(ValueError, match="Decryption failed"):
+                decrypt_as_recipient(container_data)
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
+
+
+def test_encrypt_for_recipient_writes_current_format_version():
+    """encrypt_for_recipient always writes the current FORMAT_VERSION."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_path = config.PRIVATE_KEY_PATH
+        config.PRIVATE_KEY_PATH = os.path.join(tmpdir, "private_key.pem")
+        try:
+            # Generate recipient identity
+            recipient_token = generate_identity()
+            # Create some file data
+            file_data = b"This is a test file to check written version."
+
+            # Encrypt
+            container_data = encrypt_for_recipient(file_data, recipient_token)
+
+            # Parse container
+            container = json.loads(container_data.decode('utf-8'))
+            # Check that the version is exactly FORMAT_VERSION
+            assert container["version"] == config.FORMAT_VERSION
+            # Also check that it's one of the supported versions (should be)
+            assert container["version"] in config.SUPPORTED_FORMAT_VERSIONS
+        finally:
+            config.PRIVATE_KEY_PATH = original_path
+            if os.path.exists(config.PRIVATE_KEY_PATH):
+                os.remove(config.PRIVATE_KEY_PATH)
 
 
