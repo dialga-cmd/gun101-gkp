@@ -29,26 +29,32 @@ def generate_identity(passphrase: str = None) -> str:
         key_size=config.RSA_KEY_SIZE,
     )
 
-    # Serialize private key with appropriate encryption
     if passphrase is not None:
         encryption_algorithm = serialization.BestAvailableEncryption(passphrase.encode())
     else:
         encryption_algorithm = serialization.NoEncryption()
-
-    # Ensure directory exists
-    os.makedirs(os.path.expanduser(os.path.dirname(config.PRIVATE_KEY_PATH)), exist_ok=True)
-
-    # Write private key
+    # Serialize private key
     private_key_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=encryption_algorithm,
     )
 
-    with open(os.path.expanduser(config.PRIVATE_KEY_PATH), 'wb') as f:
-        f.write(private_key_pem)
+    # Ensure directory exists
+    os.makedirs(os.path.expanduser(os.path.dirname(config.PRIVATE_KEY_PATH)), exist_ok=True)
 
-    # Set file permissions to 0o600
+    # Write private key with permissions 0o600 atomically
+    try:
+        fd = os.open(
+            os.path.expanduser(config.PRIVATE_KEY_PATH),
+            os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+            0o600,
+        )
+    except FileExistsError:
+        # This should not happen because we checked has_identity(), but handle race
+        raise ValueError("Identity already exists. Call reset_identity() first.")
+    with os.fdopen(fd, 'wb') as f:
+        f.write(private_key_pem)
     os.chmod(os.path.expanduser(config.PRIVATE_KEY_PATH), 0o600)
 
     # Get public key and create token
@@ -86,7 +92,23 @@ def load_private_key(passphrase: str = None):
             password=passphrase.encode() if passphrase is not None else None,
         )
     except Exception as e:
-        raise ValueError(f"Failed to load private key: {e}")
+        raise ValueError("Failed to load private key") from e
+    # Validate loaded private key
+    if not isinstance(private_key, rsa.RSAPrivateKey):
+        raise ValueError("Loaded key is not an RSA private key")
+    if private_key.key_size != config.RSA_KEY_SIZE:
+        raise ValueError(f"Invalid key size: expected {config.RSA_KEY_SIZE}, got {private_key.key_size}")
+    public_numbers = private_key.public_key().public_numbers()
+    # Validate public exponent is sane
+    # The library generates keys with exponent 65537 (config.RSA_PUBLIC_EXPONENT), which is
+    # the de facto standard for new RSA keys. Exponents 3 and 17 are also accepted as they
+    # appear in some legacy RSA implementations and are Fermat primes (F0 and F2).
+    # While exponent 3 has theoretical vulnerabilities in textbook RSA, OAEP with SHA-256
+    # provides adequate protection against known attacks.
+    # Exponents 5 and 257 (other Fermat primes) are rejected as they are extremely rare
+    # in practice and offer no significant advantage over 65537.
+    if public_numbers.e not in [3, 17, 65537]:
+        raise ValueError(f"Unusual public exponent: {public_numbers.e}. Expected 3, 17, or 65537")
 
     return private_key
 
