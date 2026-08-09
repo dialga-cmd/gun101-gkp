@@ -78,3 +78,7 @@ GUN-101-GKP is designed for authenticating the recipient and providing confident
 Users must protect their private key diligently. Loss of the private key means permanent loss of access to all files encrypted with the corresponding public key.
 
 The protocol does not claim to be secure against advanced threats such as nation-state attackers with quantum capabilities or compromised endpoints. It is a practical solution for everyday confidentiality needs based on well-vetted cryptographic primitives.
+
+## Error Messages
+
+To prevent Side-Channel attacks via error-message oracles, all validation and decryption errors raise a generic `ValueError` with the message `"Decryption failed"`. The only exception is malformed JSON or invalid UTF-8 in the container, which raises `ValueError` with the message `"Invalid container format"`. This ensures that an attacker cannot distinguish between different failure reasons (e.g., wrong key, tampered ciphertext, or incorrect protocol version) based on the error message alone.

@@ -119,9 +119,9 @@ def decrypt_as_recipient(container_data: bytes, passphrase: str = None) -> bytes
 
     # Verify protocol and version
     if container.get("protocol") != PROTOCOL:
-        raise ValueError(f"Invalid protocol: expected {PROTOCOL}, got {container.get('protocol')}")
+        raise ValueError("Decryption failed")
     if container.get("version") != VERSION:
-        raise ValueError(f"Invalid version: expected {VERSION}, got {container.get('version')}")
+        raise ValueError("Decryption failed")
 
     # Load recipient's private key
     try:
