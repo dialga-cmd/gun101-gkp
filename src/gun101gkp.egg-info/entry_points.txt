@@ -1,2 +1,0 @@
-[console_scripts]
-gun101gkp = gun101gkp.cli:main
