@@ -672,6 +672,27 @@ def test_reset_identity_cli():
 def test_exponent_validation():
     """Load private key validates public exponent is 3 or 65537; rejects others."""
     from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateNumbers, RSAPublicNumbers
+    import math
+    def make_usable_key(exponent, key_size):
+        """Generate a valid RSA private key with the given public exponent.
+        Repeats until exponent is coprime with phi(p,q)."""
+        while True:
+            # generate a temporary key to get random primes
+            temp = rsa.generate_private_key(public_exponent=65537, key_size=key_size)
+            nums = temp.private_numbers()
+            p, q = nums.p, nums.q
+            phi = (p - 1) * (q - 1)
+            if math.gcd(exponent, phi) == 1:
+                # compute private exponent
+                d = pow(exponent, -1, phi)
+                pub_nums = RSAPublicNumbers(exponent, p * q)
+                dmp1 = d % (p - 1)
+                dmq1 = d % (q - 1)
+                iqmp = pow(q, -1, p)
+                priv_nums = RSAPrivateNumbers(p, q, d, dmp1, dmq1, iqmp, pub_nums)
+                return priv_nums.private_key()
+            # else loop again with new p,q
+
     with tempfile.TemporaryDirectory() as tmpdir:
         original_path = config.PRIVATE_KEY_PATH
         key_path = os.path.join(tmpdir, 'private_key.pem')
@@ -700,20 +721,7 @@ def test_exponent_validation():
             loaded_key = load_private_key()
             assert loaded_key.public_key().public_numbers().e == 65537
             # Test rejection of exponent 5
-            # Generate a normal key to obtain p, q
-            base_key = rsa.generate_private_key(public_exponent=65537, key_size=config.RSA_KEY_SIZE)
-            priv_nums = base_key.private_numbers()
-            p, q = priv_nums.p, priv_nums.q
-            n = p * q
-            phi = (p - 1) * (q - 1)
-            e = 5
-            d = pow(e, -1, phi)
-            pub_nums = RSAPublicNumbers(e, n)
-            dmp1 = d % (p - 1)
-            dmq1 = d % (q - 1)
-            iqmp = pow(q, -1, p)
-            priv_nums2 = RSAPrivateNumbers(p, q, d, dmp1, dmq1, iqmp, pub_nums)
-            key_e5 = priv_nums2.private_key()
+            key_e5 = make_usable_key(5, config.RSA_KEY_SIZE)
             key_pem_e5 = key_e5.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.PKCS8,
@@ -724,14 +732,7 @@ def test_exponent_validation():
             with pytest.raises(ValueError, match="Unusual public exponent"):
                 load_private_key()
             # Test rejection of exponent 257
-            e = 257
-            d = pow(e, -1, phi)
-            pub_nums = RSAPublicNumbers(e, n)
-            dmp1 = d % (p - 1)
-            dmq1 = d % (q - 1)
-            iqmp = pow(q, -1, p)
-            priv_nums3 = RSAPrivateNumbers(p, q, d, dmp1, dmq1, iqmp, pub_nums)
-            key_e257 = priv_nums3.private_key()
+            key_e257 = make_usable_key(257, config.RSA_KEY_SIZE)
             key_pem_e257 = key_e257.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.PKCS8,
