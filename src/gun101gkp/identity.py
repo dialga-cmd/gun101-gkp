@@ -101,14 +101,14 @@ def load_private_key(passphrase: str = None):
     public_numbers = private_key.public_key().public_numbers()
     # Validate public exponent is sane
     # The library generates keys with exponent 65537 (config.RSA_PUBLIC_EXPONENT), which is
-    # the de facto standard for new RSA keys. Exponents 3 and 17 are also accepted as they
-    # appear in some legacy RSA implementations and are Fermat primes (F0 and F2).
-    # While exponent 3 has theoretical vulnerabilities in textbook RSA, OAEP with SHA-256
-    # provides adequate protection against known attacks.
-    # Exponents 5 and 257 (other Fermat primes) are rejected as they are extremely rare
-    # in practice and offer no significant advantage over 65537.
-    if public_numbers.e not in [3, 17, 65537]:
-        raise ValueError(f"Unusual public exponent: {public_numbers.e}. Expected 3, 17, or 65537")
+    # the de facto standard for new RSA keys. Exponent 3 is also accepted for backward
+    # compatibility with legacy systems. While exponent 3 has theoretical vulnerabilities
+    # in textbook RSA, OAEP with SHA-256 provides adequate protection against known attacks.
+    # Exponents 5, 17, and 257 (other Fermat primes) are rejected as they are either not
+    # supported by the underlying cryptography library (5, 257) or extremely rare in practice
+    # (17) and offer no advantage over 65537.
+    if public_numbers.e not in [3, 65537]:
+        raise ValueError(f"Unusual public exponent: {public_numbers.e}. Expected 3 or 65537")
 
     return private_key
 
