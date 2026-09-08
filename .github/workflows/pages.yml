@@ -24,7 +24,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Pages
+        # Requires the repository to have Pages enabled (Settings → Pages →
+        # Source: "GitHub Actions"). If it is not yet enabled, provide a
+        # PAGES_PAT secret (repo scope / pages write) and this step will enable
+        # Pages automatically -- GITHUB_TOKEN cannot create the Pages site.
         uses: actions/configure-pages@v5
+        with:
+          token: ${{ secrets.PAGES_PAT || github.token }}
+          enablement: ${{ secrets.PAGES_PAT != '' }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

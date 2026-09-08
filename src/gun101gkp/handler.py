@@ -64,7 +64,8 @@ def encrypt_for_recipient(file_data: bytes, recipient_token: str) -> bytes:
 
     # Generate random DEK
     dek = os.urandom(DEK_LEN)
-    assert len(dek) == DEK_LEN  # internal invariant; checked during dynamic analysis
+    # Intentional invariant; exercised by the Hypothesis dynamic-analysis suite.
+    assert len(dek) == DEK_LEN  # nosec B101
 
     # Encrypt file data with DEK using AES-256-GCM
     aad = _compute_aad(PROTOCOL, FORMAT_VERSION, recipient_fingerprint)
@@ -79,7 +80,9 @@ def encrypt_for_recipient(file_data: bytes, recipient_token: str) -> bytes:
     except Exception as e:
         raise ValueError("Failed to seal DEK") from e
 
-    assert len(sealed_dek) == RSA_KEY_SIZE // 8  # RSA-4096 ciphertext length
+    # Intentional invariant; exercised by the Hypothesis dynamic-analysis suite.
+
+    assert len(sealed_dek) == RSA_KEY_SIZE // 8  # nosec B101
 
     # Wipe DEK from memory
     dek = bytes(DEK_LEN)
@@ -176,7 +179,9 @@ def decrypt_as_recipient(container_data: bytes, passphrase: Optional[str] = None
         del dek
         raise ValueError("Decryption failed") from e
 
-    assert len(dek) == DEK_LEN  # OAEP-unsealed DEK length invariant
+    # Intentional invariant (OAEP-unsealed DEK length); exercised by the
+    # Hypothesis dynamic-analysis suite.
+    assert len(dek) == DEK_LEN  # nosec B101
 
     # Decode nonce, ciphertext, tag
     try:
@@ -206,5 +211,7 @@ def decrypt_as_recipient(container_data: bytes, passphrase: Optional[str] = None
     dek = bytes(DEK_LEN)
     del dek
 
-    assert isinstance(plaintext, bytes)
+    # Intentional invariant; exercised by the Hypothesis dynamic-analysis suite.
+
+    assert isinstance(plaintext, bytes)  # nosec B101
     return plaintext
