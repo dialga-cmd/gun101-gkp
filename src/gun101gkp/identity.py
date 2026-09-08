@@ -1,14 +1,16 @@
-import os
 import base64
 import hashlib
+import os
+from typing import Optional
+
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
+
 from . import config
 
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives import hashes
 
-def generate_identity(passphrase: str = None) -> str:
+def generate_identity(passphrase: Optional[str] = None) -> str:
     """Generate a new RSA-4096 keypair and store the private key.
 
     Args:
@@ -52,7 +54,7 @@ def generate_identity(passphrase: str = None) -> str:
         )
     except FileExistsError:
         # This should not happen because we checked has_identity(), but handle race
-        raise ValueError("Identity already exists. Call reset_identity() first.")
+        raise ValueError("Identity already exists. Call reset_identity() first.") from None
     with os.fdopen(fd, 'wb') as f:
         f.write(private_key_pem)
     os.chmod(os.path.expanduser(config.PRIVATE_KEY_PATH), 0o600)
@@ -66,7 +68,7 @@ def generate_identity(passphrase: str = None) -> str:
     token = config.TOKEN_PREFIX + base64.b64encode(public_key_der).decode('ascii')
     return token
 
-def load_private_key(passphrase: str = None):
+def load_private_key(passphrase: Optional[str] = None) -> RSAPrivateKey:
     """Load the private key from the stored PEM file.
 
     Args:
@@ -112,7 +114,7 @@ def load_private_key(passphrase: str = None):
 
     return private_key
 
-def load_public_key_from_token(token: str):
+def load_public_key_from_token(token: str) -> RSAPublicKey:
     """Load an RSAPublicKey from an identity token.
 
     Args:
@@ -129,7 +131,6 @@ def load_public_key_from_token(token: str):
 
     token_data = token[len(config.TOKEN_PREFIX):]
     # Validate that token_data contains only valid base64 characters
-    import string
     valid_b64_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=")
     if not all(c in valid_b64_chars for c in token_data):
         raise ValueError("Invalid base64")
@@ -137,12 +138,12 @@ def load_public_key_from_token(token: str):
     try:
         public_key_der = base64.b64decode(token_data)
     except Exception:
-        raise ValueError("Invalid base64")
+        raise ValueError("Invalid base64") from None
 
     try:
         public_key = serialization.load_der_public_key(public_key_der)
     except Exception:
-        raise ValueError("Failed to deserialize public key from DER")
+        raise ValueError("Failed to deserialize public key from DER") from None
 
     return public_key
 
@@ -167,7 +168,7 @@ def get_identity_token() -> str:
     token = config.TOKEN_PREFIX + base64.b64encode(public_key_der).decode('ascii')
     return token
 
-def get_identity_fingerprint(token: str = None) -> str:
+def get_identity_fingerprint(token: Optional[str] = None) -> str:
     """Compute the SHA-256 fingerprint of a public key.
 
     Args:

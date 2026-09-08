@@ -1,15 +1,15 @@
-import json
 import base64
+import json
 import os
+from typing import Optional
+
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives import serialization
 
-from .config import PROTOCOL, FORMAT_VERSION, SUPPORTED_FORMAT_VERSIONS, DEK_LEN
-from .identity import load_private_key, load_public_key_from_token, get_identity_fingerprint
-from .cipher import encrypt as aes_encrypt, decrypt as aes_decrypt
-
-AAD_VERSION = "2.1"
+from .cipher import decrypt as aes_decrypt
+from .cipher import encrypt as aes_encrypt
+from .config import DEK_LEN, FORMAT_VERSION, PROTOCOL, SUPPORTED_FORMAT_VERSIONS
+from .identity import get_identity_fingerprint, load_private_key, load_public_key_from_token
 
 def _compute_aad(protocol: str, version: str, recipient_fingerprint: str) -> bytes:
     """Compute associated data for AES-GCM from protocol, version, and recipient fingerprint."""
@@ -21,7 +21,7 @@ def _compute_aad(protocol: str, version: str, recipient_fingerprint: str) -> byt
     }
     return json.dumps(aad_dict, separators=(',', ':')).encode('utf-8')
 
-def _rsa_oaep_padding():
+def _rsa_oaep_padding() -> padding.OAEP:
     return padding.OAEP(
         mgf=padding.MGF1(algorithm=hashes.SHA256()),
         algorithm=hashes.SHA256(),
@@ -49,7 +49,7 @@ def encrypt_for_recipient(file_data: bytes, recipient_token: str) -> bytes:
     # Load recipient public key
     try:
         public_key = load_public_key_from_token(recipient_token)
-    except ValueError as e:
+    except ValueError:
         # Re-raise ValueError from load_public_key_from_token without extra prefix
         raise
     except Exception as e:
@@ -94,7 +94,7 @@ def encrypt_for_recipient(file_data: bytes, recipient_token: str) -> bytes:
 
     return json.dumps(container).encode('utf-8')
 
-def decrypt_as_recipient(container_data: bytes, passphrase: str = None) -> bytes:
+def decrypt_as_recipient(container_data: bytes, passphrase: Optional[str] = None) -> bytes:
     """Decrypt a container using the recipient's private key.
 
     Args:
@@ -127,7 +127,7 @@ def decrypt_as_recipient(container_data: bytes, passphrase: str = None) -> bytes
     try:
         private_key = load_private_key(passphrase)
     except FileNotFoundError:
-        raise FileNotFoundError("No private key found")
+        raise FileNotFoundError("No private key found") from None
     except ValueError as e:
         raise ValueError("Failed to load private key") from e
 

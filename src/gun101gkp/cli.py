@@ -5,23 +5,21 @@ GUN-101-GKP Command Line Interface.
 Provides commands for identity management and file encryption/decryption.
 """
 import argparse
-import base64
 import getpass
 import os
 import sys
-from pathlib import Path
 
 from . import __version__
-from .config import PRIVATE_KEY_PATH, TOKEN_PREFIX
+from .config import PRIVATE_KEY_PATH
+from .handler import decrypt_as_recipient, encrypt_for_recipient
 from .identity import (
     generate_identity,
-    get_identity_token,
     get_identity_fingerprint,
+    get_identity_token,
     has_identity,
     reset_identity,
-    load_private_key,
 )
-from .handler import encrypt_for_recipient, decrypt_as_recipient
+
 
 def cmd_generate_identity(args):
     """Generate a new identity."""
