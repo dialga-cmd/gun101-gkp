@@ -1,0 +1,16 @@
+title = "GUN-101-GKP gitleaks configuration"
+# Base config: use gitleaks' default rules (extended, not replaced).
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Truncated example identity tokens shown in README.md and docs. These are documentation placeholders (note the trailing '...'), not real secrets."
+regexes = [
+    # Prefix plus a short sample payload terminated by '...' (docs only).
+    '''GUN101GKP-v2-[A-Za-z0-9+/]{1,16}\.\.\.''',
+]
+# Scope the allowlist to documentation files only.
+paths = [
+    '''^README\.md$''',
+]
