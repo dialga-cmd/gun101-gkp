@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Security Team
+# SPDX-License-Identifier: MIT
 """
 Test suite for the GUN-101-GKP command-line interface.
 
@@ -264,6 +266,169 @@ def test_main_fingerprint_with_token(tmpdir, monkeypatch, capsys):
     _run_main(["fingerprint", "--token", token], monkeypatch)
     out = capsys.readouterr().out.strip()
     assert ":" in out
+
+
+def test_cmd_show_identity_errors_on_get_token_failure(tmpdir, monkeypatch, capsys):
+    """show-identity surfaces a ValueError from get_identity_token."""
+    _setup(tmpdir, monkeypatch)
+    monkeypatch.setattr(
+        "gun101gkp.cli.has_identity", lambda: True
+    )
+    import gun101gkp.cli as cli
+    monkeypatch.setattr(
+        cli, "get_identity_token", lambda: (_ for _ in ()).throw(ValueError("token missing"))
+    )
+    with pytest.raises(SystemExit) as exc:
+        cmd_show_identity(_Args())
+    assert exc.value.code == 1
+    assert "token missing" in capsys.readouterr().err
+
+
+def test_cmd_fingerprint_no_identity_no_token(tmpdir, monkeypatch, capsys):
+    """fingerprint with no stored identity and no token errors."""
+    _setup(tmpdir, monkeypatch)
+    with pytest.raises(SystemExit) as exc:
+        cmd_fingerprint(_Args(token=None))
+    assert exc.value.code == 1
+    assert "No identity found" in capsys.readouterr().err
+
+
+def test_cmd_fingerprint_stored_identity_error(tmpdir, monkeypatch, capsys):
+    """fingerprint surfaces errors falling back to the stored identity."""
+    _setup(tmpdir, monkeypatch)
+    import gun101gkp.cli as cli
+    monkeypatch.setattr(cli, "has_identity", lambda: True)
+    monkeypatch.setattr(
+        cli, "get_identity_token", lambda: (_ for _ in ()).throw(ValueError("no token"))
+    )
+    with pytest.raises(SystemExit) as exc:
+        cmd_fingerprint(_Args(token=None))
+    assert exc.value.code == 1
+    assert "no token" in capsys.readouterr().err
+
+
+def test_cmd_fingerprint_invalid_token(tmpdir, monkeypatch, capsys):
+    """fingerprint with a malformed token errors."""
+    _setup(tmpdir, monkeypatch)
+    with pytest.raises(SystemExit) as exc:
+        cmd_fingerprint(_Args(token="bad-token"))
+    assert exc.value.code == 1
+    assert "Error" in capsys.readouterr().err
+
+
+def test_cmd_encrypt_read_error(tmpdir, monkeypatch, capsys):
+    """encrypt surfaces an OSError reading the input file."""
+    _setup(tmpdir, monkeypatch)
+    import gun101gkp.cli as cli
+
+    def fake_open(path, mode):
+        raise OSError("permission denied")
+
+    monkeypatch.setattr(cli.os.path, "isfile", lambda p: True)
+    monkeypatch.setattr("builtins.open", fake_open)
+    with pytest.raises(SystemExit) as exc:
+        cmd_encrypt(_Args(file="f.txt", recipient="tok", output=None))
+    assert exc.value.code == 1
+    assert "Cannot read file" in capsys.readouterr().err
+
+
+def test_cmd_encrypt_write_error(tmpdir, monkeypatch, capsys):
+    """encrypt surfaces an OSError writing the output file."""
+    _setup(tmpdir, monkeypatch)
+    cmd_generate_identity(_Args(passphrase=False))
+    from gun101gkp.identity import get_identity_token
+
+    recipient = get_identity_token()
+    plain_path = os.path.join(tmpdir, "p.txt")
+    with open(plain_path, "wb") as f:
+        f.write(b"data")
+
+    real_open = open
+
+    def fake_open(path, mode="r", *a, **k):
+        if "wb" in mode:
+            raise OSError("disk full")
+        return real_open(path, mode, *a, **k)
+
+    monkeypatch.setattr("builtins.open", fake_open)
+    with pytest.raises(SystemExit) as exc:
+        cmd_encrypt(_Args(file=plain_path, recipient=recipient, output=None))
+    assert exc.value.code == 1
+    assert "Cannot write output" in capsys.readouterr().err
+
+
+def test_cmd_decrypt_invalid_container(tmpdir, monkeypatch, capsys):
+    """decrypt surfaces a ValueError for a malformed container."""
+    _setup(tmpdir, monkeypatch)
+    cmd_generate_identity(_Args(passphrase=False))
+    bad_path = os.path.join(tmpdir, "bad.gkp")
+    with open(bad_path, "wb") as f:
+        f.write(b"not a container")
+    with pytest.raises(SystemExit) as exc:
+        cmd_decrypt(_Args(file=bad_path, output=None, passphrase=False))
+    assert exc.value.code == 1
+    assert "Error" in capsys.readouterr().err
+
+
+def test_cmd_decrypt_strips_gkp_extension(tmpdir, monkeypatch, capsys):
+    """decrypt to default output strips a trailing .gkp extension."""
+    _setup(tmpdir, monkeypatch)
+    cmd_generate_identity(_Args(passphrase=False))
+    from gun101gkp.identity import get_identity_token
+
+    recipient = get_identity_token()
+    plain_path = os.path.join(tmpdir, "secret.txt")
+    enc_path = plain_path + ".gkp"
+    with open(plain_path, "wb") as f:
+        f.write(b"payload with extension")
+    cmd_encrypt(_Args(file=plain_path, recipient=recipient, output=enc_path))
+    capsys.readouterr()
+    cmd_decrypt(_Args(file=enc_path, output=None, passphrase=False))
+    with open(plain_path, "rb") as f:
+        assert f.read() == b"payload with extension"
+    assert "Decrypted file written to" in capsys.readouterr().out
+
+
+def test_cmd_encrypt_uses_getpass_flow(tmpdir, monkeypatch, capsys):
+    """encrypt/decrypt roundtrip is unaffected by the getpass branch."""
+    _setup(tmpdir, monkeypatch)
+    values = ["secret", "secret"]
+
+    def fake_getpass(prompt):
+        return values.pop(0)
+
+    monkeypatch.setattr("getpass.getpass", fake_getpass)
+    cmd_generate_identity(_Args(passphrase=True))
+    out = capsys.readouterr().out
+    recipient = [line.split(": ", 1)[1] for line in out.splitlines()
+                 if line.startswith("Identity token:")][0]
+
+    plain_path = os.path.join(tmpdir, "gp.txt")
+    enc_path = os.path.join(tmpdir, "gp.txt.gkp")
+    dec_path = os.path.join(tmpdir, "gp_out.txt")
+    with open(plain_path, "wb") as f:
+        f.write(b"getpass flow")
+    cmd_encrypt(_Args(file=plain_path, recipient=recipient, output=enc_path))
+    capsys.readouterr()
+    monkeypatch.setattr("getpass.getpass", lambda _prompt: "secret")
+    cmd_decrypt(_Args(file=enc_path, output=dec_path, passphrase=True))
+    with open(dec_path, "rb") as f:
+        assert f.read() == b"getpass flow"
+
+
+def test_cmd_reset_identity_error(tmpdir, monkeypatch, capsys):
+    """reset-identity surfaces an error from reset_identity."""
+    _setup(tmpdir, monkeypatch)
+    cmd_generate_identity(_Args(passphrase=False))
+    monkeypatch.setattr("builtins.input", lambda _prompt: "YES")
+    import gun101gkp.cli as cli
+    monkeypatch.setattr(
+        cli, "reset_identity", lambda: (_ for _ in ()).throw(ValueError("boom"))
+    )
+    with pytest.raises(SystemExit) as exc:
+        cmd_reset_identity(_Args())
+    assert exc.value.code == 1
+    assert "boom" in capsys.readouterr().err
 
 
 def _run_main(argv, monkeypatch):

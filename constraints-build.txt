@@ -1,0 +1,8 @@
+# Build-tool constraints for reproducible builds.
+#
+# Pinning the exact build backend versions makes every build use the same
+# toolchain, so the reproducibility check (tox.ini `repro` env,
+# scripts/repro_check.py) compares like-for-like. Bump deliberately and
+# re-verify `tox -e repro` passes before committing a change.
+setuptools==70.3.0
+wheel==0.43.0

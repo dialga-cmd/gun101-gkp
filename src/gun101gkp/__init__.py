@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Security Team
+# SPDX-License-Identifier: MIT
+
 """GUN-101-GKP: Ghost Key Protocol."""
 
 from . import config  # noqa: F401  (ensure config is loaded for side-effects)

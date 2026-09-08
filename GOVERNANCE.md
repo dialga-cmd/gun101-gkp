@@ -47,6 +47,27 @@ The project **intends a bus factor of 2 or more**, and actively seeks additional
 committers. Nominations for committer status are made by the maintainer after a
 track record of high-quality, security-aware contributions.
 
+### Account security for maintainers
+
+Everyone with write, merge, or publishing access **must** secure their accounts
+with **two-factor authentication (2FA) that uses cryptographic mechanisms** to
+prevent impersonation and credential theft:
+
+- **Hardware security keys (WebAuthn / FIDO2 / passkeys)** — always required for
+  maintainers; this is the only mechanism that both satisfies this policy and
+  resists phishing.
+- **Authenticator apps (TOTP)** — acceptable where a hardware key is not yet
+  available, since TOTP produces cryptographically derived codes on-device.
+- **SMS-based 2FA is prohibited** for anyone with repository or publishing
+  access: SMS is not encrypted and is subject to SIM-swap and
+  SS7-based interception. SMS-only 2FA does **not** satisfy this policy.
+
+The same requirement applies to any third-party services that hold publishing
+credentials (e.g., the PyPI account that releases `gun101-gkp`): 2FA must be
+enabled with a cryptographic mechanism, never SMS. Access-continuity and
+credential-transfer rules are described in the
+[Access continuity and bus factor](#access-continuity-and-bus-factor) section.
+
 ### Contributor
 A contributor is anyone who submits a pull request, files an issue, or takes part
 in discussion. Contributors who submit non-trivial code are expected to agree to

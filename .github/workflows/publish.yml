@@ -24,6 +24,13 @@ jobs:
           pip install -e ".[dev]"
       - name: Run tests
         run: pytest tests/ -v
+      - name: Dynamic analysis (Hypothesis fuzzing)
+        # dynamic_analysis / dynamic_analysis_enable_assertions: every proposed
+        # release tag is gated on this fuzz suite, which exercises the library
+        # with adversarial inputs and checks the runtime assertions in src/.
+        # Hypothesis runs assertions enabled (no -O), so the assert statements
+        # in the library are executed throughout the run.
+        run: pytest tests/test_fuzz.py -v
 
   build:
     name: Build and publish Python package

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none'; font-src 'none'; frame-ancestors 'none'; object-src 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="X-Content-Type-Options" content="nosniff">
+  <meta name="color-scheme" content="light dark">
+  <title>GUN-101-GKP — Ghost Key Protocol</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      max-width: 70ch; margin: 2rem auto; padding: 0 1.25rem; line-height: 1.55;
+    }
+    h1 { border-bottom: 2px solid #444; padding-bottom: .25rem; }
+    code { background: rgba(128,128,128,.15); padding: .1em .35em; border-radius: 4px; }
+    pre { background: rgba(128,128,128,.1); padding: .9rem; border-radius: 6px; overflow-x: auto; }
+    .meta { color: #777; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <p class="meta">Content-Security-Policy: <code>default-src 'none'</code> · Strict-Transport-Security &amp; X-Content-Type-Options: provided by GitHub/PyPI edge infrastructure. Headers are verified in <a href="HARDENING.md" rel="noopener">docs/HARDENING.md</a>.</p>
+
+  <h1>GUN-101-GKP — Ghost Key Protocol</h1>
+  <p>Passwordless asymmetric encryption for files, using <strong>RSA-4096</strong> key encapsulation and <strong>AES-256-GCM</strong> data encryption.</p>
+
+  <h2>What problem does it solve?</h2>
+  <p>Sending a sensitive file to a specific recipient usually means agreeing on a password or shared secret over a secure channel. GUN-101-GKP removes that step.</p>
+  <p>The recipient generates an RSA-4096 key pair and shares only a <strong>public Identity Token</strong>. Anyone holding that token can encrypt a file for the recipient, but only the holder of the matching private key can decrypt it — with no password and no shared secret exchanged.</p>
+
+  <h2>Quick start</h2>
+  <pre>pip install gun101-gkp
+
+# Recipient: generate an identity once
+gun101gkp generate-identity
+
+# Sender: encrypt a file for the recipient
+gun101gkp encrypt report.pdf --recipient GUN101GKP-v2-...
+
+# Recipient: decrypt
+gun101gkp decrypt report.pdf.gkp</pre>
+  <p>Full usage is documented in the <a href="https://github.com/dialga-cmd/gun101-gkp#readme" rel="noopener">README</a> and the <a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/API.md" rel="noopener">API reference</a>.</p>
+
+  <h2>How it protects data</h2>
+  <ul>
+    <li><strong>Confidentiality</strong> — RSA-4096 with OAEP (SHA-256) and AES-256-GCM protect the file contents.</li>
+    <li><strong>Integrity &amp; authenticity</strong> — the AES-GCM tag detects any modification before decryption proceeds.</li>
+    <li><strong>Wrong-key rejection</strong> — a recipient public-key fingerprint is verified before any RSA operation.</li>
+    <li><strong>Fresh key per file</strong> — a random 256-bit data encryption key (DEK) is generated for every encryption.</li>
+  </ul>
+
+  <h2>Project status and security</h2>
+  <ul>
+    <li><a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/SECURITY_POLICY.md" rel="noopener">Security policy</a></li>
+    <li><a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/THREAT_MODEL.md" rel="noopener">Threat model</a></li>
+    <li><a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/SECURITY.md" rel="noopener">Security properties</a></li>
+    <li><a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/ARCHITECTURE.md" rel="noopener">Architecture (high-level design)</a></li>
+    <li><a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/ROADMAP.md" rel="noopener">Roadmap</a></li>
+    <li><a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/GOVERNANCE.md" rel="noopener">Governance</a></li>
+    <li><a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/CODE_OF_CONDUCT.md" rel="noopener">Code of conduct</a></li>
+  </ul>
+
+  <h2>Contributing</h2>
+  <p>Contributions are welcome. Please read the <a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/CONTRIBUTING.md" rel="noopener">contributing guide</a> first. The <a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/AUTHORS.md" rel="noopener">authors</a> are listed in AUTHORS.md.</p>
+  <ul>
+    <li><strong>Start with a small task</strong> — see the <a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/TASKS.md" rel="noopener">starter-task list</a> and the <a href="https://github.com/dialga-cmd/gun101-gkp/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22" rel="noopener">good first issue</a> label.</li>
+    <li><strong>Report a bug or request a feature</strong> — open a <a href="https://github.com/dialga-cmd/gun101-gkp/issues" rel="noopener">GitHub issue</a>.</li>
+    <li><strong>Submit changes</strong> — contribute via a <a href="https://github.com/dialga-cmd/gun101-gkp/pulls" rel="noopener">pull request</a>; sign off your commits per the DCO.</li>
+    <li><strong>Report a security vulnerability</strong> — email privately (see the <a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/SECURITY_POLICY.md" rel="noopener">security policy</a>); do <strong>not</strong> open a public issue.</li>
+  </ul>
+
+  <h2>License</h2>
+  <p>MIT. See the <a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/LICENSE" rel="noopener">LICENSE</a> file.</p>
+</body>
+</html>
