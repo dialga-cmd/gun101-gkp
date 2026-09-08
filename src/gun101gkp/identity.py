@@ -34,7 +34,8 @@ def generate_identity(passphrase: Optional[str] = None) -> str:
         public_exponent=config.RSA_PUBLIC_EXPONENT,
         key_size=config.RSA_KEY_SIZE,
     )
-    assert private_key.key_size == config.RSA_KEY_SIZE  # internal invariant
+    # Intentional invariant; exercised by the Hypothesis dynamic-analysis suite.
+    assert private_key.key_size == config.RSA_KEY_SIZE  # nosec B101
 
     encryption_algorithm: KeySerializationEncryption
     if passphrase is not None:
@@ -72,7 +73,8 @@ def generate_identity(passphrase: Optional[str] = None) -> str:
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
     token = config.TOKEN_PREFIX + base64.b64encode(public_key_der).decode('ascii')
-    assert token.startswith(config.TOKEN_PREFIX)  # internal invariant
+    # Intentional invariant; exercised by the Hypothesis dynamic-analysis suite.
+    assert token.startswith(config.TOKEN_PREFIX)  # nosec B101
     return token
 
 def load_private_key(passphrase: Optional[str] = None) -> RSAPrivateKey:
