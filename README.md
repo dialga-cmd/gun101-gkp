@@ -2,6 +2,13 @@
 
 A passwordless asymmetric encryption library for file encryption using RSA-4096 and AES-256-GCM.
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14543/badge)](https://www.bestpractices.dev/projects/14543)
+[![CI](https://github.com/dialga-cmd/gun101-gkp/actions/workflows/ci.yml/badge.svg)](https://github.com/dialga-cmd/gun101-gkp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/dialga-cmd/gun101-gkp/blob/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/gun101-gkp.svg)](https://pypi.org/project/gun101-gkp/)
+
+**Project website:** <https://dialga-cmd.github.io/gun101-gkp/>
+
 ## What is GUN-101-GKP?
 
 GUN-101-GKP (Ghost Key Protocol) is a Python library that enables secure file encryption without shared secrets or passwords. The recipient generates an RSA-4096 key pair and shares only their public key (called an Identity Token). Anyone with this token can encrypt files for the recipient, but only the holder of the private key can decrypt them.
@@ -27,6 +34,15 @@ GUN-101-GKP provides confidentiality of file contents against attackers who do n
 - **Quantum attacks**: RSA-4096 is vulnerable to Shor's algorithm on a sufficiently large quantum computer. This library does not claim post-quantum security.
 - **Forward secrecy**: Compromise of the private key allows decryption of all previously encrypted files; no forward secrecy is provided.
 - **Traffic analysis or metadata protection**: The length of the file and the fact that encryption occurred are not concealed.
+
+## Documentation
+
+- **API reference** — the full external interface (Python API, CLI, and container
+  format): [`docs/API.md`](docs/API.md)
+- **Security properties** — [`docs/SECURITY.md`](docs/SECURITY.md)
+- **Threat model** — [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md)
+- **Releases** (stable + interim versions) — [`RELEASING.md`](RELEASING.md)
+- **Project website** — <https://dialga-cmd.github.io/gun101-gkp/>
 
 ## How to use it
 

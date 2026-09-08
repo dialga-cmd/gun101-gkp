@@ -291,8 +291,17 @@ When you open the PR, use the template at
   friction; it is the point of the project.
 - Reviews focus on: invariants preserved, error-message consistency, memory wiping of keys,
   use of the correct library functions, and test coverage (positive *and* negative).
-- `pytest tests/ -v` must be green before merge. CI currently runs only a publish workflow, so
-  reviewers rely on your reported test output; make it easy to trust.
+- `pytest tests/ -v` must be green before merge. CI (`.github/workflows/ci.yml`)
+  runs tests, lint, type-checking, and security scans on every pull request, so
+  reviewers can trust the reported output; make it easy to verify.
+
+## Releasing
+
+The release process — including how **interim (pre-release)** versions are cut
+between stable releases to satisfy the OpenSSF `repo_interim` criterion — is
+documented in [`RELEASING.md`](RELEASING.md). In short: bump `pyproject.toml`,
+tag `v<version>` (stable or `a`/`rc` pre-release), push; the publish workflow
+builds, SBOMs, attests, and publishes to PyPI.
 
 ## Code of conduct
 

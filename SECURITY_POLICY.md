@@ -11,12 +11,18 @@ installed it once — this page is worth two minutes of your time.
 Only the **latest minor release line** receives security fixes. Older lines are
 unsupported; upgrading is expected of all users.
 
+**Interim (pre-release) versions** (e.g. `3.2.0a1`, `3.2.0rc1`) are published to
+PyPI for collaborative review between releases, but are **not** a supported line.
+They are snapshots of the upcoming release; security fixes land on the stable
+line. See `RELEASING.md` for the release process.
+
 | Version        | Supported          |
 | -------------- | ------------------ |
 | 3.1.x          | Yes (latest: 3.1.2) |
 | 3.0.x          | No |
 | 2.x            | No |
 | < 2.x          | No |
+| *-a*, *-rc*, *-b* pre-releases | No (review snapshots only) |
 
 When a security release is cut, it will be released for the supported line and a
 clear upgrade path will be documented in the release notes (automatically
