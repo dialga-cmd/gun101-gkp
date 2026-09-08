@@ -8,6 +8,7 @@ Provides commands for identity management and file encryption/decryption.
 """
 import argparse
 import getpass
+import json
 import os
 import sys
 
@@ -55,7 +56,10 @@ def cmd_show_identity(args: argparse.Namespace) -> None:
         sys.exit(1)
     try:
         token = get_identity_token()
-        print(token)
+        if getattr(args, "json", False):
+            print(json.dumps({"token": token}))
+        else:
+            print(token)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -76,7 +80,10 @@ def cmd_fingerprint(args: argparse.Namespace) -> None:
 
     try:
         fingerprint = get_identity_fingerprint(token)
-        print(fingerprint)
+        if getattr(args, "json", False):
+            print(json.dumps({"fingerprint": fingerprint}))
+        else:
+            print(fingerprint)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -191,6 +198,9 @@ def main() -> None:
     show_parser = subparsers.add_parser(
         "show-identity", help="Show the stored identity token"
     )
+    show_parser.add_argument(
+        "--json", action="store_true", help="Output in JSON format"
+    )
     show_parser.set_defaults(func=cmd_show_identity)
 
     # fingerprint
@@ -199,6 +209,9 @@ def main() -> None:
     )
     fp_parser.add_argument(
         "--token", help="Token to fingerprint (defaults to stored identity)"
+    )
+    fp_parser.add_argument(
+        "--json", action="store_true", help="Output in JSON format"
     )
     fp_parser.set_defaults(func=cmd_fingerprint)
 
