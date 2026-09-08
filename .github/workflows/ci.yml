@@ -29,7 +29,7 @@ jobs:
           pip install -e ".[dev]"
       - name: Run tests with coverage
         run: |
-          pytest tests/ --cov=gun101gkp --cov-report=term-missing --cov-report=xml
+          pytest tests/ --cov=gun101gkp --cov-report=term-missing --cov-report=xml --cov-fail-under=80
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v4

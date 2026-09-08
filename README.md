@@ -39,9 +39,14 @@ GUN-101-GKP provides confidentiality of file contents against attackers who do n
 
 - **API reference** — the full external interface (Python API, CLI, and container
   format): [`docs/API.md`](docs/API.md)
+- **Architecture** (high-level design): [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - **Security properties** — [`docs/SECURITY.md`](docs/SECURITY.md)
 - **Threat model** — [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md)
+- **Roadmap** — [`ROADMAP.md`](ROADMAP.md)
+- **Governance** — [`GOVERNANCE.md`](GOVERNANCE.md)
+- **Developer Certificate of Origin** — [`DCO`](DCO)
 - **Releases** (stable + interim versions) — [`RELEASING.md`](RELEASING.md)
+- **Contributing** — [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - **Project website** — <https://dialga-cmd.github.io/gun101-gkp/>
 
 ## How to use it

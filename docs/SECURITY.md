@@ -82,3 +82,43 @@ The protocol does not claim to be secure against advanced threats such as nation
 ## Error Messages
 
 To prevent Side-Channel attacks via error-message oracles, all validation and decryption errors raise a generic `ValueError` with the message `"Decryption failed"`. The only exception is malformed JSON or invalid UTF-8 in the container, which raises `ValueError` with the message `"Invalid container format"`. This ensures that an attacker cannot distinguish between different failure reasons (e.g., wrong key, tampered ciphertext, or incorrect protocol version) based on the error message alone.
+
+## Release signing keys
+
+Releases are **cryptographically signed** and verifiable (see `RELEASING.md`).
+The public signing key belongs to the maintainer, **Aditya Raj**.
+
+- **Key fingerprint:** `(maintainer's GPG key fingerprint — published here once a key is registered)`
+- **How to obtain it:**
+  - In the repository as a signed commit/tag (Verified badge via GitHub).
+  - From the maintainer's GitHub profile (**Settings → SSH and GPG keys**).
+  - On public key servers (keys.openpgp.org) under the email
+    `adityaraj1234@duck.com`.
+- **How to verify:** `git tag -v <version>` and `gh attestation verify <artifact>`
+  (see [RELEASING.md](RELEASING.md) → "Verifying a signed release").
+- **Private key:** the private signing key is **never** stored on PyPI (the
+  distribution site); it is held by the maintainer and used to sign git tags
+  cryptographically.
+
+## Algorithm agility
+
+GUN-101-GKP deliberately uses a **single, well-audited cryptographic suite**
+(RSA-4096/OAEP-SHA256 for key encapsulation and AES-256-GCM for data
+encryption) rather than exposing many selectable algorithms. This reduces
+misconfiguration risk and the audit surface (a documented secure-design choice;
+see `docs/SECURITY.md`). However, algorithm agility is treated as an
+**architectural property**: every algorithm and parameter is centralized and
+selectable from a single configuration point:
+
+- The symmetric primitives are isolated in `src/gun101gkp/cipher.py` behind the
+  `cryptography` library, so AES-256-GCM can be swapped for another AEAD without
+  changing the rest of the library.
+- RSA parameters (key size, exponent, OAEP hash) are constants in
+  `src/gun101gkp/config.py`.
+- Because the container format is versioned, a future migration to a different
+  algorithm can be introduced as a new format version while continuing to decrypt
+  existing containers.
+
+This makes switching a broken algorithm a small, isolated, testable change rather
+than a rewrite, satisfying the intent of algorithm agility while keeping a small,
+auditable default surface.

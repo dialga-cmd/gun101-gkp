@@ -51,6 +51,7 @@ This library's documented invariants are in `docs/SECURITY.md` and
 - [ ] I have added tests for any new functionality (positive **and** negative for security-affecting functions).
 - [ ] I have run `pytest tests/ -v` and all tests pass.
 - [ ] I have read `CONTRIBUTING.md`.
+- [ ] I have signed off my commits per the Developer Certificate of Origin (all commits carry a `Signed-off-by` trailer).
 
 ## How I tested
 

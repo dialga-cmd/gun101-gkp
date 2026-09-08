@@ -21,7 +21,7 @@ from .identity import (
 )
 
 
-def cmd_generate_identity(args):
+def cmd_generate_identity(args: argparse.Namespace) -> None:
     """Generate a new identity."""
     passphrase = None
     if args.passphrase:
@@ -46,7 +46,7 @@ def cmd_generate_identity(args):
         file=sys.stderr,
     )
 
-def cmd_show_identity(args):
+def cmd_show_identity(args: argparse.Namespace) -> None:
     """Show the stored identity token."""
     if not has_identity():
         print("Error: No identity found. Generate one first.", file=sys.stderr)
@@ -58,7 +58,7 @@ def cmd_show_identity(args):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-def cmd_fingerprint(args):
+def cmd_fingerprint(args: argparse.Namespace) -> None:
     """Show the fingerprint of an identity token."""
     if args.token:
         token = args.token
@@ -79,7 +79,7 @@ def cmd_fingerprint(args):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-def cmd_encrypt(args):
+def cmd_encrypt(args: argparse.Namespace) -> None:
     """Encrypt a file for a recipient."""
     if not os.path.isfile(args.file):
         print(f"Error: File '{args.file}' not found.", file=sys.stderr)
@@ -108,7 +108,7 @@ def cmd_encrypt(args):
 
     print(f"Encrypted file written to: {output_path}")
 
-def cmd_decrypt(args):
+def cmd_decrypt(args: argparse.Namespace) -> None:
     """Decrypt a file using the recipient's private key."""
     if not os.path.isfile(args.file):
         print(f"Error: File '{args.file}' not found.", file=sys.stderr)
@@ -143,7 +143,7 @@ def cmd_decrypt(args):
 
     print(f"Decrypted file written to: {output_path}")
 
-def cmd_reset_identity(args):
+def cmd_reset_identity(args: argparse.Namespace) -> None:
     """Remove the stored identity."""
     if not has_identity():
         print("Error: No identity found.", file=sys.stderr)
@@ -165,7 +165,7 @@ def cmd_reset_identity(args):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="GUN-101-GKP: Ghost Key Protocol for passwordless asymmetric encryption."
     )

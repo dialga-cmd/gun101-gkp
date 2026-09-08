@@ -6,6 +6,7 @@ from typing import Optional
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
+from cryptography.hazmat.primitives.serialization import KeySerializationEncryption
 
 from . import config
 
@@ -31,6 +32,7 @@ def generate_identity(passphrase: Optional[str] = None) -> str:
         key_size=config.RSA_KEY_SIZE,
     )
 
+    encryption_algorithm: KeySerializationEncryption
     if passphrase is not None:
         encryption_algorithm = serialization.BestAvailableEncryption(passphrase.encode())
     else:
@@ -144,6 +146,9 @@ def load_public_key_from_token(token: str) -> RSAPublicKey:
         public_key = serialization.load_der_public_key(public_key_der)
     except Exception:
         raise ValueError("Failed to deserialize public key from DER") from None
+
+    if not isinstance(public_key, RSAPublicKey):
+        raise ValueError("Identity token does not contain an RSA public key")
 
     return public_key
 
