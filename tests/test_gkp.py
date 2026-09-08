@@ -3,26 +3,27 @@ Test suite for GUN-101-GKP.
 
 Each test includes a docstring explaining the security property being verified.
 """
-import os
 import base64
 import json
+import os
 import tempfile
+
 import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from gun101gkp import config
+from gun101gkp.cipher import decrypt, encrypt
+from gun101gkp.handler import decrypt_as_recipient, encrypt_for_recipient
 from gun101gkp.identity import (
     generate_identity,
-    get_identity_token,
     get_identity_fingerprint,
+    get_identity_token,
     has_identity,
-    reset_identity,
     load_private_key,
     load_public_key_from_token,
+    reset_identity,
 )
-from gun101gkp.cipher import encrypt, decrypt
-from gun101gkp.handler import encrypt_for_recipient, decrypt_as_recipient
 
 
 def test_generate_identity_creates_private_key_at_correct_path():
@@ -291,7 +292,7 @@ def test_encrypt_for_a_decrypt_as_b_fails_before_rsa():
             token_a = generate_identity()
             # Generate B's key
             config.PRIVATE_KEY_PATH = key_b_path
-            token_b = generate_identity()
+            _ = generate_identity()
             # Set back to A's key for decryption attempt (so that decrypt_as_recipient loads A's key)
             config.PRIVATE_KEY_PATH = key_a_path
             # Encrypt for A
@@ -530,11 +531,12 @@ def test_truncated_container():
 
 def test_tampered_tag_no_output_file():
     """Tampered tag results in no output file when decrypting via CLI."""
-    import subprocess
-    import os
-    import tempfile
-    import json
     import base64
+    import json
+    import os
+    import subprocess
+    import tempfile
+
     from gun101gkp import config
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -585,9 +587,10 @@ def test_tampered_tag_no_output_file():
 
 def test_fingerprint_cli():
     """Test the fingerprint CLI command."""
-    import subprocess
     import os
+    import subprocess
     import tempfile
+
     from gun101gkp import config
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -629,9 +632,10 @@ def test_fingerprint_cli():
 
 def test_reset_identity_cli():
     """Test the reset-identity CLI command."""
-    import subprocess
     import os
+    import subprocess
     import tempfile
+
     from gun101gkp import config
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -671,8 +675,9 @@ def test_reset_identity_cli():
 
 def test_exponent_validation():
     """Load private key validates public exponent is 3 or 65537; rejects others."""
-    from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateNumbers, RSAPublicNumbers
     import math
+
+    from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateNumbers, RSAPublicNumbers
     def make_usable_key(exponent, key_size):
         """Generate a valid RSA private key with the given public exponent.
         Repeats until exponent is coprime with phi(p,q)."""

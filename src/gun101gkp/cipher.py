@@ -1,9 +1,12 @@
 import os
+from typing import Optional
+
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from .config import AES_NONCE_LEN, DEK_LEN
 
-def encrypt(plaintext: bytes, key: bytes, associated_data: bytes = None) -> tuple[bytes, bytes, bytes]:
+
+def encrypt(plaintext: bytes, key: bytes, associated_data: Optional[bytes] = None) -> tuple[bytes, bytes, bytes]:
     """Encrypt plaintext with AES-256-GCM.
 
     Args:
@@ -28,7 +31,7 @@ def encrypt(plaintext: bytes, key: bytes, associated_data: bytes = None) -> tupl
     tag = ciphertext_with_tag[-16:]
     return nonce, ciphertext, tag
 
-def decrypt(nonce: bytes, ciphertext: bytes, tag: bytes, key: bytes, associated_data: bytes = None) -> bytes:
+def decrypt(nonce: bytes, ciphertext: bytes, tag: bytes, key: bytes, associated_data: Optional[bytes] = None) -> bytes:
     """Decrypt ciphertext with AES-256-GCM.
 
     Args:
