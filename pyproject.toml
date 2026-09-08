@@ -40,9 +40,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/dialga-cmd/gun101-gkp"
+Homepage = "https://dialga-cmd.github.io/gun101-gkp/"
 Repository = "https://github.com/dialga-cmd/gun101-gkp"
 Documentation = "https://github.com/dialga-cmd/gun101-gkp#readme"
+Website = "https://dialga-cmd.github.io/gun101-gkp/"
 Issues = "https://github.com/dialga-cmd/gun101-gkp/issues"
 
 [project.scripts]

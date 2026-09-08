@@ -11,6 +11,7 @@ from .cipher import encrypt as aes_encrypt
 from .config import DEK_LEN, FORMAT_VERSION, PROTOCOL, SUPPORTED_FORMAT_VERSIONS
 from .identity import get_identity_fingerprint, load_private_key, load_public_key_from_token
 
+
 def _compute_aad(protocol: str, version: str, recipient_fingerprint: str) -> bytes:
     """Compute associated data for AES-GCM from protocol, version, and recipient fingerprint."""
     # Use compact JSON (no spaces) to ensure consistent encoding
