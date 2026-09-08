@@ -1,0 +1,50 @@
+name: DCO
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: DCO sign-off check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify commits have a Signed-off-by trailer
+        shell: bash
+        run: |
+          # Determine the commits to check.
+          # For pull requests, check the commits in the PR; otherwise the latest commits.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="origin/${{ github.event.pull_request.base.ref }}..HEAD"
+          else
+            RANGE="HEAD~21..HEAD"
+          fi
+
+          FAILED=0
+          CHECKED=0
+          for hash in $(git rev-list "$RANGE" 2>/dev/null); do
+            CHECKED=$((CHECKED+1))
+            # Report trailers; look for a Signed-off-by trailer line.
+            TRAILERS=$(git log -1 --format='%(trailers:unfold)' "$hash")
+            if ! printf '%s\n' "$TRAILERS" | grep -q '^Signed-off-by: '; then
+              echo "::error::Commit $hash is missing a Signed-off-by trailer."
+              echo "  Fix with:  git commit --amend -s   (or)  git rebase --signoff"
+              FAILED=1
+            else
+              echo "OK   $hash"
+            fi
+          done
+
+          if [ "$CHECKED" -eq 0 ]; then
+            echo "No commits to check."
+            exit 0
+          fi
+          exit $FAILED

@@ -61,30 +61,32 @@ After the version-bump PR is merged to `main`:
 ```bash
 git checkout main
 git pull
-git tag v3.2.0
+git tag -s v3.2.0 -m "Release v3.2.0"   # -s signs the tag with your GPG key
 git push origin v3.2.0
 ```
 
-The `test` job runs, then `build` + publish completes. Verify on PyPI.
+The `-s` flag creates a **GPG-signed tag** (see
+['Signing release tags'](#signing-release-tags)). The `test` job runs, then
+`build` + publish completes. Verify on PyPI.
 
 ### Interim (pre-release)
 
-The process is identical — just tag the interim version. For example, to publish
-a release candidate:
+The process is identical — just tag the interim version with a signed tag. For
+example, to publish a release candidate:
 
 ```bash
-git tag v3.2.0rc1
-git push origin v3.2.0
+git tag -s v3.2.0rc1 -m "Release candidate v3.2.0rc1"
+git push origin v3.2.0rc1
 ```
 
 More often a small batch of alphas is cut first, then release candidates, then
 the stable release:
 
 ```bash
-git tag v3.2.0a1 && git push origin v3.2.0a1
+git tag -s v3.2.0a1 -m "Alpha v3.2.0a1" && git push origin v3.2.0a1
 # ... iterate a2, a3 ...
-git tag v3.2.0rc1 && git push origin v3.2.0rc1
-git tag v3.2.0 && git push origin v3.2.0
+git tag -s v3.2.0rc1 -m "RC v3.2.0rc1" && git push origin v3.2.0rc1
+git tag -s v3.2.0 -m "Release v3.2.0" && git push origin v3.2.0
 ```
 
 Each tag publishes a distinct, reviewable artifact to PyPI. Because the publish
@@ -92,12 +94,59 @@ workflow validates that the tag matches `pyproject.toml`, remember to bump
 `pyproject.toml` to each interim version (e.g. `3.2.0a1`, then `3.2.0rc1`)
 before tagging it.
 
-## Verifying a release
+## Signing release tags
 
-- **PyPI:** confirm the version appears at <https://pypi.org/project/gun101-gkp/>.
-- **SBOM:** the workflow uploads `sbom.json` alongside the release.
-- **Provenance:** the build-attestation is recorded via
-  `actions/attest-build-provenance`.
+Release tags should be **GPG-signed** and verifiable (`version_tags_signed`):
+
+```bash
+git tag -s v3.2.0 -m "Release v3.2.0"   # create signed tag
+git tag -v v3.2.0                       # verify a tag's signature
+```
+
+Publish your GPG public key so users can verify:
+
+- Configure the key via GitHub **Settings → SSH and GPG keys → New GPG key**.
+- Set it for signing commits/tags via **Settings → SSH and GPG keys →
+  Vigilant mode** (or `git config user.signingkey <KEY>`).
+
+## Verifying a signed release
+
+Every release is intended for widespread use, so users can verify its
+authenticity. Releases are protected by both **provenance attestation** (via
+GitHub's infra) and **GPG-signed tags**. The steps:
+
+### 1. Verify the GPG signature on the release tag
+
+The published release corresponds to a signed git tag. Verify the tag's
+signature and confirm the signing key belongs to the maintainer:
+
+```bash
+git fetch --tags origin
+git tag -v v3.2.0
+```
+
+The maintainer's public signing key is published in the repository (see
+[`SECURITY.md`](SECURITY.md) → "Release signing keys") and on the key server(s)
+listed there.
+
+### 2. Verify build provenance (recommended)
+
+The publish workflow records a **build provenance attestation** using
+`actions/attest-build-provenance`. You can verify the artifact matches the public
+build in GitHub's artifact attestations UI or with the `gh` CLI:
+
+```bash
+gh attestation verify dist/gun101_gkp-3.2.0-*.whl
+```
+
+### 3. Verify the SBOM
+
+The workflow publishes an SBOM (`sbom.json`) alongside each release describing
+the build dependency tree.
+
+**Releases are produced from signed tags on a single audited CI pipeline
+(`.github/workflows/publish.yml`); the private signing key is never stored on the
+distribution site (PyPI).**
 
 ## Hotfixes
 

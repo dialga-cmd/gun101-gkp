@@ -63,21 +63,30 @@ This project follows secure-development best practices. See:
 - [Security policy](https://github.com/dialga-cmd/gun101-gkp/blob/main/SECURITY_POLICY.md)
 - [Threat model](https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/THREAT_MODEL.md)
 - [Security properties](https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/SECURITY.md)
+- [Architecture (high-level design)](https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/ARCHITECTURE.md)
+- [Roadmap](https://github.com/dialga-cmd/gun101-gkp/blob/main/ROADMAP.md)
+- [Governance](https://github.com/dialga-cmd/gun101-gkp/blob/main/GOVERNANCE.md)
 - [Code of conduct](https://github.com/dialga-cmd/gun101-gkp/blob/main/CODE_OF_CONDUCT.md)
+
+## Achievements
+
+[![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/0/badge)](https://bestpractices.coreinfrastructure.org/projects/0)
 
 ## Contributing
 
 Contributions are welcome. Please read the
 [contributing guide](https://github.com/dialga-cmd/gun101-gkp/blob/main/CONTRIBUTING.md)
-first — it explains the contribution process, coding standard, and the security
-invariants that must never be weakened.
+first — it explains the contribution process, coding standard, the
+[Developer Certificate of Origin (DCO)](https://github.com/dialga-cmd/gun101-gkp/blob/main/DCO),
+and the security invariants that must never be weakened.
 
 To get involved:
 
 - **Report a bug or request a feature** — open a
   [GitHub issue](https://github.com/dialga-cmd/gun101-gkp/issues).
 - **Submit changes** — contribute via a
-  [pull request](https://github.com/dialga-cmd/gun101-gkp/pulls).
+  [pull request](https://github.com/dialga-cmd/gun101-gkp/pulls); sign off your
+  commits per the DCO.
 - **Report a security vulnerability** — email privately
   (see the [security policy](https://github.com/dialga-cmd/gun101-gkp/blob/main/SECURITY_POLICY.md));
   do **not** open a public issue.

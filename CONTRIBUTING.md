@@ -141,8 +141,10 @@ If you touch something in `config.py` or `handler.py`, read `docs/SECURITY.md` a
   docstring stating the security property they verify.
 - Use clean, readable Python (target Python 3.8 syntax if you can, but the codebase already
   uses built-in generics, so Python 3.9+ syntax is accepted).
-- No external linter config exists yet; keep lines reasonably short (~100 chars) and stay
-  consistent with the surrounding code.
+- **Linting and formatting:** the project uses [`ruff`](https://docs.astral.sh/ruff/).
+  Config lives in `pyproject.toml` under `[tool.ruff]`. Run `ruff check .` before submitting
+  a PR; CI enforces it (`ci.yml` → "Lint" job). Type checking uses `mypy` (also enforced in
+  CI via the "Type check" job): run `mypy src` locally.
 - **Do not add comments that merely restate the code.** The codebase uses comments only where
   they explain *why* (for example, why exponent `3` is still accepted in `load_private_key`).
 
@@ -272,7 +274,20 @@ Use a short descriptive prefix:
   Add fingerprint verification before RSA decrypt (closes #12)
   ```
 
-No need to sign off; GPG signing is appreciated but not required.
+### Developer Certificate of Origin (DCO)
+
+This project uses the **Developer Certificate of Origin** to confirm that
+contributors are legally authorized to make their contributions. Every commit
+must include a `Signed-off-by` trailer:
+
+```
+Signed-off-by: Your Name <you@example.com>
+```
+
+Use `git commit -s` (or `git commit --signoff`) to add it automatically, or
+`git rebase --signoff` to fix an existing branch. The trailer is verified by a
+DCO check in CI (see `.github/workflows/dco.yml`). See the [`DCO`](DCO) file for
+the full text.
 
 ### The pull request
 
