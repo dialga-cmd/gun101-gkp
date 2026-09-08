@@ -150,6 +150,12 @@ If you touch something in `config.py` or `handler.py`, read `docs/SECURITY.md` a
 
 ## Security rules for contributors
 
+Maintainers and contributors with merge/publishing access **must** enable
+**two-factor authentication using cryptographic mechanisms** (hardware security
+keys/WebAuthn, or TOTP authenticator apps — never SMS-only) on their GitHub and
+PyPI accounts. See [GOVERNANCE.md](GOVERNANCE.md) → "Account security for
+maintainers". This protects the repo against impersonated credentials.
+
 ### Protected invariants (never, under any circumstances, weaken these)
 
 The following are hard floors. Changing any of them requires a written justification AND a
@@ -211,8 +217,20 @@ an acknowledgement within 48 hours.
 
 ## Good first issues
 
-These are scoped, concrete, and a great way to get familiar with the codebase. Pick one and
-comment on it in an issue before starting, so effort is not duplicated.
+The project maintains a curated list of **small, clearly-scoped tasks** for new
+or casual contributors in [`docs/TASKS.md`](docs/TASKS.md). These are ideal
+first contributions: each is achievable without deep context.
+
+Issues tagged with the GitHub label **`good first issue`** are the small tasks
+that are ready to be claimed — see the
+[filtered issue list](https://github.com/dialga-cmd/gun101-gkp/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22).
+If you run `gh`:
+
+```bash
+gh issue list --label "good first issue"
+```
+
+Additional concrete starter tasks:
 
 1. **Add identity backup / restore CLI commands.** `reset-identity` is irreversible. Add
    `backup-identity` (export the encrypted PEM to a user-chosen path) and `restore-identity`
@@ -301,14 +319,49 @@ When you open the PR, use the template at
 
 ### What review looks like
 
-- The maintainer reviews the PR, usually within a few days.
-- Expect questions about **why** a change is safe rather than just *that* it works. This is not
-  friction; it is the point of the project.
-- Reviews focus on: invariants preserved, error-message consistency, memory wiping of keys,
-  use of the correct library functions, and test coverage (positive *and* negative).
+**Every proposed change is reviewed before it is merged.** This is the project's
+code review policy (`code_review_standards`). A change is *accepted* only when a
+reviewer other than the author has verified each of the following and the
+author has addressed every comment:
+
+1. **CI is green** — tests, lint, type-checking, dynamic analysis (Hypothesis),
+   and security scans all pass (see `.github/workflows/ci.yml`).
+2. **Scope is minimal** — the diff does only what the PR description claims,
+   with no unrelated changes.
+3. **Security invariants preserved** — the PR template's security checklist in
+   `.github/pull_request_template.md` is fully ticked for `docs/SECURITY.md` and
+   `docs/THREAT_MODEL.md` invariants (RSA-4096, OAEP-SHA256, AES-256-GCM, DEK
+   length, nonce length, no error-message oracle, AAD binding, format-version
+   compatibility).
+4. **Cryptography changes carry a written justification** — the property being
+   preserved, the attack considered, and why the change is safe.
+5. **Tests cover the change** — positive and negative cases; security-affecting
+   functions must have both. New tests pass.
+6. **Code quality** — type hints and docstrings (mypy/ruff clean), no dead code,
+   consistent error-message wording.
+7. **DCO sign-off** — every commit carries `Signed-off-by`.
+
+**Review conduct:**
+
+- The maintainer (or a designated committer) reviews the PR, usually within a few days.
+- Expect questions about **why** a change is safe rather than just *that* it
+  works. This is not friction; it is the point of the project.
+- Reviews focus on: invariants preserved, error-message consistency, memory
+  wiping of keys, use of the correct library functions, and test coverage
+  (positive *and* negative).
+- **Two-person review:** because of the single-maintainer structure, the author
+  and the reviewer must be different people to the greatest extent possible.
+  When the maintainer authors a change, a second committer/contributor reviews
+  it; when a contribution cannot be reviewed by a second person, the maintainer
+  documents this explicitly so the review gap is visible. The project tracks
+  this across pull requests to keep ≥50% of proposed modifications reviewed by
+  someone other than the author before release (`two_person_review`).
 - `pytest tests/ -v` must be green before merge. CI (`.github/workflows/ci.yml`)
-  runs tests, lint, type-checking, and security scans on every pull request, so
-  reviewers can trust the reported output; make it easy to verify.
+  runs tests, lint, type-checking, dynamic analysis (the Hypothesis fuzz suite,
+  `tests/test_fuzz.py`), and security scans on every pull request, so reviewers
+  can trust the reported output; make it easy to verify.
+
+A quick reference of the review checklist is also rendered as `docs/CODE_REVIEW.md`.
 
 ## Releasing
 
@@ -316,6 +369,7 @@ The release process — including how **interim (pre-release)** versions are cut
 between stable releases to satisfy the OpenSSF `repo_interim` criterion — is
 documented in [`RELEASING.md`](RELEASING.md). In short: bump `pyproject.toml`,
 tag `v<version>` (stable or `a`/`rc` pre-release), push; the publish workflow
+runs the full test suite **and the dynamic-analysis fuzz gate** before it
 builds, SBOMs, attests, and publishes to PyPI.
 
 ## Code of conduct

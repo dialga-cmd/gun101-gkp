@@ -63,7 +63,11 @@ This project follows secure-development best practices. See:
 - [Security policy](https://github.com/dialga-cmd/gun101-gkp/blob/main/SECURITY_POLICY.md)
 - [Threat model](https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/THREAT_MODEL.md)
 - [Security properties](https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/SECURITY.md)
+- [Security review](https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/SECURITY_REVIEW.md)
 - [Architecture (high-level design)](https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/ARCHITECTURE.md)
+- [Site hardening headers](https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/HARDENING.md)
+- [Code review standards](https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/CODE_REVIEW.md)
+- [Reproducible build](https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/REPRODUCIBLE_BUILD.md)
 - [Roadmap](https://github.com/dialga-cmd/gun101-gkp/blob/main/ROADMAP.md)
 - [Governance](https://github.com/dialga-cmd/gun101-gkp/blob/main/GOVERNANCE.md)
 - [Code of conduct](https://github.com/dialga-cmd/gun101-gkp/blob/main/CODE_OF_CONDUCT.md)
@@ -78,10 +82,16 @@ Contributions are welcome. Please read the
 [contributing guide](https://github.com/dialga-cmd/gun101-gkp/blob/main/CONTRIBUTING.md)
 first — it explains the contribution process, coding standard, the
 [Developer Certificate of Origin (DCO)](https://github.com/dialga-cmd/gun101-gkp/blob/main/DCO),
-and the security invariants that must never be weakened.
+and the security invariants that must never be weakened. The
+[authors](https://github.com/dialga-cmd/gun101-gkp/blob/main/AUTHORS.md) are
+listed in AUTHORS.md.
 
 To get involved:
 
+- **Start with a small task** — see the curated
+  [starter-task list](https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/TASKS.md)
+  and the [`good first issue`](https://github.com/dialga-cmd/gun101-gkp/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22)
+  label.
 - **Report a bug or request a feature** — open a
   [GitHub issue](https://github.com/dialga-cmd/gun101-gkp/issues).
 - **Submit changes** — contribute via a

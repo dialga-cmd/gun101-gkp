@@ -45,14 +45,26 @@ latest stable). Users can opt in with `pip install gun101-gkp==3.2.0rc1`.
    pytest tests/ -v
    ```
    All tests must pass before tagging.
-5. **Create and merge a PR** with these changes (bump + changelog + docs) to
+5. **Dynamic analysis**: run the Hypothesis fuzz suite (the project's dynamic
+   analysis tooling), which exercises `encrypt`/`decrypt`/token loading with
+   adversarial inputs and checks the runtime assertions in `src/` (asserts are
+   enabled — never run this with `python -O`):
+   ```bash
+   pytest tests/test_fuzz.py -v
+   ```
+   This is required before *any* proposed major/minor production release
+   (`dynamic_analysis`), and the assertions are enforced during every run
+   (`dynamic_analysis_enable_assertions`). CI also runs this gate on every pull
+   request and the publish workflow re-runs it before publishing.
+6. **Create and merge a PR** with these changes (bump + changelog + docs) to
    `main`. Release from `main` only.
 
 ## Cutting a release
 
 Anything that ships is triggered by a **tag**. The GitHub workflow
-`.github/workflows/publish.yml` runs tests, builds the package, generates an SBOM,
-attests provenance, and publishes to PyPI.
+`.github/workflows/publish.yml` runs tests and the dynamic-analysis fuzz gate,
+then builds the package, generates an SBOM, attests provenance, and publishes to
+PyPI — no artifact ships without first passing dynamic analysis.
 
 ### Stable release
 

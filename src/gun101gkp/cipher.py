@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Security Team
+# SPDX-License-Identifier: MIT
+
 import os
 from typing import Optional
 
@@ -23,12 +26,15 @@ def encrypt(plaintext: bytes, key: bytes, associated_data: Optional[bytes] = Non
     if len(key) != DEK_LEN:
         raise ValueError(f"Key must be {DEK_LEN} bytes long")
 
+    assert len(key) == DEK_LEN  # internal invariant; checked during dynamic analysis
     nonce = os.urandom(AES_NONCE_LEN)
+    assert len(nonce) == AES_NONCE_LEN
     aesgcm = AESGCM(key)
     ciphertext_with_tag = aesgcm.encrypt(nonce, plaintext, associated_data)
     # AESGCM appends the tag to the ciphertext
     ciphertext = ciphertext_with_tag[:-16]
     tag = ciphertext_with_tag[-16:]
+    assert len(tag) == 16  # AES-GCM default tag length
     return nonce, ciphertext, tag
 
 def decrypt(nonce: bytes, ciphertext: bytes, tag: bytes, key: bytes, associated_data: Optional[bytes] = None) -> bytes:
@@ -55,9 +61,11 @@ def decrypt(nonce: bytes, ciphertext: bytes, tag: bytes, key: bytes, associated_
         raise ValueError("Tag must be 16 bytes long")
 
     ciphertext_with_tag = ciphertext + tag
+    assert len(ciphertext_with_tag) == len(ciphertext) + 16
     aesgcm = AESGCM(key)
     try:
         plaintext = aesgcm.decrypt(nonce, ciphertext_with_tag, associated_data)
     except Exception as e:
         raise ValueError("Decryption failed") from e
+    assert isinstance(plaintext, bytes)
     return plaintext

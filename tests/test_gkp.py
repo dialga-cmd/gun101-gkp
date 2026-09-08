@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Security Team
+# SPDX-License-Identifier: MIT
 """
 Test suite for GUN-101-GKP.
 

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Security Team
+# SPDX-License-Identifier: MIT
 """
 GUN-101-GKP Command Line Interface.
 

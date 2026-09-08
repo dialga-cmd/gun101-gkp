@@ -42,11 +42,17 @@ GUN-101-GKP provides confidentiality of file contents against attackers who do n
 - **Architecture** (high-level design): [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - **Security properties** — [`docs/SECURITY.md`](docs/SECURITY.md)
 - **Threat model** — [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md)
+- **Security review** (2026) — [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md)
 - **Roadmap** — [`ROADMAP.md`](ROADMAP.md)
 - **Governance** — [`GOVERNANCE.md`](GOVERNANCE.md)
+- **Authors / contributors** — [`AUTHORS.md`](AUTHORS.md)
+- **Site hardening** (security headers) — [`docs/HARDENING.md`](docs/HARDENING.md)
+- **Code review standards** — [`docs/CODE_REVIEW.md`](docs/CODE_REVIEW.md)
+- **Reproducible build** — [`docs/REPRODUCIBLE_BUILD.md`](docs/REPRODUCIBLE_BUILD.md)
 - **Developer Certificate of Origin** — [`DCO`](DCO)
 - **Releases** (stable + interim versions) — [`RELEASING.md`](RELEASING.md)
 - **Contributing** — [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- **Starter tasks for new contributors** — [`docs/TASKS.md`](docs/TASKS.md)
 - **Project website** — <https://dialga-cmd.github.io/gun101-gkp/>
 
 ## How to use it
@@ -126,6 +132,29 @@ If your private key is encrypted with a passphrase, you will be prompted for it.
 ```bash
 pip install gun101-gkp
 ```
+
+## Testing
+
+The test suite is FLOSS (pytest) and invocable in the standard way for the
+language (`test_invocation`):
+
+```bash
+pip install -e ".[dev]"
+pytest tests/ -v
+```
+
+For the full check used in CI (coverage gates + dynamic analysis + reproducibility):
+
+```bash
+pytest tests/ --cov=gun101gkp --cov-branch --cov-report=term-missing --cov-fail-under=90
+pytest tests/test_fuzz.py -v            # dynamic analysis (Hypothesis)
+tox -e repro                            # reproducible build check
+```
+
+`test_continuous_integration` is enforced by the CI workflow
+(`.github/workflows/ci.yml`), which runs these tests on every push and pull
+request. Statement coverage is ≥ 90% and branch coverage ≥ 80%
+(`test_statement_coverage90`, `test_branch_coverage80`).
 
 ## Algorithm details
 

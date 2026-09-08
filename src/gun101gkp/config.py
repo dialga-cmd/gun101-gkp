@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Security Team
+# SPDX-License-Identifier: MIT
+
 PROTOCOL = "GUN-101-GKP"
 FORMAT_VERSION = "2.1"
 SUPPORTED_FORMAT_VERSIONS = ["2.0", "2.1"]

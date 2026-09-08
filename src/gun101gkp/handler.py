@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Security Team
+# SPDX-License-Identifier: MIT
+
 import base64
 import json
 import os
@@ -8,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 
 from .cipher import decrypt as aes_decrypt
 from .cipher import encrypt as aes_encrypt
-from .config import DEK_LEN, FORMAT_VERSION, PROTOCOL, SUPPORTED_FORMAT_VERSIONS
+from .config import DEK_LEN, FORMAT_VERSION, PROTOCOL, RSA_KEY_SIZE, SUPPORTED_FORMAT_VERSIONS
 from .identity import get_identity_fingerprint, load_private_key, load_public_key_from_token
 
 
@@ -61,6 +64,7 @@ def encrypt_for_recipient(file_data: bytes, recipient_token: str) -> bytes:
 
     # Generate random DEK
     dek = os.urandom(DEK_LEN)
+    assert len(dek) == DEK_LEN  # internal invariant; checked during dynamic analysis
 
     # Encrypt file data with DEK using AES-256-GCM
     aad = _compute_aad(PROTOCOL, FORMAT_VERSION, recipient_fingerprint)
@@ -75,8 +79,7 @@ def encrypt_for_recipient(file_data: bytes, recipient_token: str) -> bytes:
     except Exception as e:
         raise ValueError("Failed to seal DEK") from e
 
-    # Compute recipient fingerprint from token
-    recipient_fingerprint = get_identity_fingerprint(recipient_token)
+    assert len(sealed_dek) == RSA_KEY_SIZE // 8  # RSA-4096 ciphertext length
 
     # Wipe DEK from memory
     dek = bytes(DEK_LEN)
@@ -118,6 +121,11 @@ def decrypt_as_recipient(container_data: bytes, passphrase: Optional[str] = None
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
         raise ValueError("Invalid container format") from e
 
+    # A valid container is a JSON object. Arrays, scalars, and null decode to
+    # non-dict values and are structurally invalid regardless of content.
+    if not isinstance(container, dict):
+        raise ValueError("Invalid container format")
+
     # Verify protocol and version
     if container.get("protocol") != PROTOCOL:
         raise ValueError("Decryption failed")
@@ -152,8 +160,9 @@ def decrypt_as_recipient(container_data: bytes, passphrase: Optional[str] = None
     # Decode sealed DEK
     try:
         sealed_dek = base64.b64decode(container["sealed_dek"])
-    except Exception as e:
-        raise ValueError("Invalid sealed_dek encoding") from e
+    except Exception:
+        # Generic message: never disclose container-structure details
+        raise ValueError("Decryption failed") from None
 
     # Unseal DEK with RSA-OAEP
     try:
@@ -167,13 +176,16 @@ def decrypt_as_recipient(container_data: bytes, passphrase: Optional[str] = None
         del dek
         raise ValueError("Decryption failed") from e
 
+    assert len(dek) == DEK_LEN  # OAEP-unsealed DEK length invariant
+
     # Decode nonce, ciphertext, tag
     try:
         nonce = base64.b64decode(container["nonce"])
         ciphertext = base64.b64decode(container["ciphertext"])
         tag = base64.b64decode(container["tag"])
-    except Exception as e:
-        raise ValueError("Invalid base64 in container fields") from e
+    except Exception:
+        # Generic message: never disclose container-structure details
+        raise ValueError("Decryption failed") from None
 
     # Determine whether to use associated data based on version
     if container["version"] == "2.0":
@@ -194,4 +206,5 @@ def decrypt_as_recipient(container_data: bytes, passphrase: Optional[str] = None
     dek = bytes(DEK_LEN)
     del dek
 
+    assert isinstance(plaintext, bytes)
     return plaintext
