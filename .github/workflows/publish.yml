@@ -13,15 +13,15 @@ jobs:
     name: Run tests before publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          python -m pip install --require-hashes -r requirements/ci-lock.txt
+          pip install --no-deps -e .
       - name: Run tests
         run: pytest tests/ -v
       - name: Dynamic analysis (Hypothesis fuzzing)
@@ -42,9 +42,9 @@ jobs:
       contents: read
       attestations: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.x'
       - name: Validate tag matches package version
@@ -79,16 +79,16 @@ jobs:
           fi
       - name: Build package
         run: |
-          python -m pip install --upgrade build
+          python -m pip install --require-hashes -r requirements/ci-lock.txt
           python -m build
       - name: Generate SBOM (CycloneDX)
-        uses: cyclonedx/gh-dotnet-generate-sbom@v1.5.0
+        uses: cyclonedx/gh-dotnet-generate-sbom@c183e4ac30e5b99354cb9a98c38548e07c538346 # v1.0.1 (was broken @v1.5.0)
         with:
           path: '.'
           format: 'json'
           output: 'sbom.json'
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v1
         with:
           subject-path: dist/*
       - name: Verify build provenance
@@ -98,4 +98,4 @@ jobs:
           gh attestation verify dist/*.whl dist/*.tar.gz --repo "$GITHUB_REPOSITORY" 2>&1 || \
             echo "::warning::Provenance verification could not be completed for all artifacts (see attest-build-provenance output)."
       - name: Publish package
-        uses: pypa/gh-action-pypi-publish@v1.12.4
+        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.12.4
