@@ -38,8 +38,8 @@ times, and small, well-scoped PRs get reviewed much faster than large sweeping o
 
 ## Prerequisites
 
-- **Python 3.8+.** The `pyproject.toml` declares `requires-python = ">=3.8"`. Note that the
-  source uses built-in generic type hints (e.g. `tuple[bytes, bytes, bytes]`), so **Python 3.9+
+- **Python 3.10+.** The `pyproject.toml` declares `requires-python = ">=3.10"`. Note that the
+  source uses built-in generic type hints (e.g. `tuple[bytes, bytes, bytes]`), so **Python 3.10+
   is strongly recommended** for developing and running tests locally.
 - **pip** and a working `git` install.
 - A free [GitHub](https://github.com) account.
@@ -139,8 +139,8 @@ If you touch something in `config.py` or `handler.py`, read `docs/SECURITY.md` a
 - **Docstrings are required** for all public functions and modules. Follow the existing style:
   a one-line summary, `Args:`, `Returns:`, and `Raises:` sections. Tests must also carry a
   docstring stating the security property they verify.
-- Use clean, readable Python (target Python 3.8 syntax if you can, but the codebase already
-  uses built-in generics, so Python 3.9+ syntax is accepted).
+- Use clean, readable Python (target Python 3.10 syntax if you can, but the codebase already
+  uses built-in generics, so Python 3.10+ syntax is accepted).
 - **Linting and formatting:** the project uses [`ruff`](https://docs.astral.sh/ruff/).
   Config lives in `pyproject.toml` under `[tool.ruff]`. Run `ruff check .` before submitting
   a PR; CI enforces it (`ci.yml` → "Lint" job). Type checking uses `mypy` (also enforced in

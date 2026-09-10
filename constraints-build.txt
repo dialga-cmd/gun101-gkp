@@ -4,5 +4,5 @@
 # toolchain, so the reproducibility check (tox.ini `repro` env,
 # scripts/repro_check.py) compares like-for-like. Bump deliberately and
 # re-verify `tox -e repro` passes before committing a change.
-setuptools==70.3.0
-wheel==0.43.0
+setuptools==83.0.0
+wheel==0.46.2

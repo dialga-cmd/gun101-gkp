@@ -1,13 +1,13 @@
 # Direct dependencies for the CI lockfile (requirements/ci-lock.txt).
-# Generated with: uv pip compile --universal --generate-hashes --python-version 3.9
-# Supports the full CI matrix (Python 3.9 - 3.12).
+# Generated with: uv pip compile --universal --generate-hashes --python-version 3.10
+# Supports the full CI matrix (Python 3.10 - 3.12).
 #
-# Build tools
+# Build tools (setuptools/wheel versions pinned via ../constraints-build.txt)
 pip
 build
-setuptools==70.3.0
-wheel==0.43.0
--c constraints-build.txt
+setuptools
+wheel
+-c ../constraints-build.txt
 # Runtime
 cryptography
 # Test / lint / type / security

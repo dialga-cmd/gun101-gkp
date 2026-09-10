@@ -7,7 +7,7 @@ interface. It describes both the inputs and outputs of every public operation.
 - **Protocol name:** `GUN-101-GKP`
 - **Current format version:** `2.1`
 - **Runtime dependency:** `cryptography >= 42.0.0`
-- **Python requirement:** `>= 3.9`
+- **Python requirement:** `>= 3.10`
 
 ---
 

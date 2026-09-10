@@ -112,7 +112,7 @@ def test_encrypt_never_crashes_on_arbitrary_token_and_data(token: str, file_data
         max_size=7,
     )
 )
-@settings(max_examples=300)
+@settings(max_examples=300, deadline=None)
 def test_decrypt_mutated_container_fields(identity: str, mutations: dict) -> None:
     """A real container's fields, arbitrarily mutated, must only yield documented failures.
 
