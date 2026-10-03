@@ -22,7 +22,6 @@
 </head>
 <body>
   <p class="meta">Content-Security-Policy: <code>default-src 'none'</code> · Strict-Transport-Security &amp; X-Content-Type-Options: provided by GitHub/PyPI edge infrastructure. Headers are verified in <a href="HARDENING.md" rel="noopener">docs/HARDENING.md</a>.</p>
-
   <h1>GUN-101-GKP — Ghost Key Protocol</h1>
   <p>Passwordless asymmetric encryption for files, using <strong>RSA-4096</strong> key encapsulation and <strong>AES-256-GCM</strong> data encryption.</p>
 
@@ -30,10 +29,24 @@
   <p>Sending a sensitive file to a specific recipient usually means agreeing on a password or shared secret over a secure channel. GUN-101-GKP removes that step.</p>
   <p>The recipient generates an RSA-4096 key pair and shares only a <strong>public Identity Token</strong>. Anyone holding that token can encrypt a file for the recipient, but only the holder of the matching private key can decrypt it — with no password and no shared secret exchanged.</p>
 
-  <h2>Quick start</h2>
-  <pre>pip install gun101-gkp
+  <h2>Installation</h2>
+  <p>Install GUN-101-GKP from PyPI:</p>
+  <pre>pip install gun101-gkp</pre>
 
-# Recipient: generate an identity once
+  <h3>Bash completion</h3>
+  <p>A Bash completion script is available at <code>scripts/completions/bash/gun101gkp.bash</code>.</p>
+
+  <p>To enable it for the current shell from a source checkout:</p>
+  <pre>source scripts/completions/bash/gun101gkp.bash</pre>
+
+  <p>For persistent per-user completion on systems using <code>bash-completion</code>:</p>
+  <pre>mkdir -p ~/.local/share/bash-completion/completions
+cp scripts/completions/bash/gun101gkp.bash ~/.local/share/bash-completion/completions/gun101gkp</pre>
+
+  <p>Start a new Bash session after installing the completion file.</p>
+
+  <h2>Quick start</h2>
+  <pre># Recipient: generate an identity once
 gun101gkp generate-identity
 
 # Sender: encrypt a file for the recipient
@@ -41,6 +54,7 @@ gun101gkp encrypt report.pdf --recipient GUN101GKP-v2-...
 
 # Recipient: decrypt
 gun101gkp decrypt report.pdf.gkp</pre>
+
   <p>Full usage is documented in the <a href="https://github.com/dialga-cmd/gun101-gkp#readme" rel="noopener">README</a> and the <a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/API.md" rel="noopener">API reference</a>.</p>
 
   <h2>How it protects data</h2>
@@ -66,8 +80,8 @@ gun101gkp decrypt report.pdf.gkp</pre>
   <p>Contributions are welcome. Please read the <a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/CONTRIBUTING.md" rel="noopener">contributing guide</a> first. The <a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/AUTHORS.md" rel="noopener">authors</a> are listed in AUTHORS.md.</p>
   <ul>
     <li><strong>Start with a small task</strong> — see the <a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/docs/TASKS.md" rel="noopener">starter-task list</a> and the <a href="https://github.com/dialga-cmd/gun101-gkp/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22" rel="noopener">good first issue</a> label.</li>
-    <li><strong>Report a bug or request a feature</strong> — open a <a href="https://github.com/dialga-cmd/gun101-gkp/issues" rel="noopener">GitHub issue</a>.</li>
-    <li><strong>Submit changes</strong> — contribute via a <a href="https://github.com/dialga-cmd/gun101-gkp/pulls" rel="noopener">pull request</a>; sign off your commits per the DCO.</li>
+    <li><strong>Report a bug or request a feature</strong> — open a <a href="https://github.com/dialga-cmd/gun101-gkp/issues">GitHub issue</a>.</li>
+    <li><strong>Submit changes</strong> — contribute via a <a href="https://github.com/dialga-cmd/gun101-gkp/pulls">pull request</a>; sign off your commits per the DCO.</li>
     <li><strong>Report a security vulnerability</strong> — email privately (see the <a href="https://github.com/dialga-cmd/gun101-gkp/blob/main/SECURITY_POLICY.md" rel="noopener">security policy</a>); do <strong>not</strong> open a public issue.</li>
   </ul>
 
