@@ -27,11 +27,37 @@ It is built for:
 - Users who want a simple, stateless scheme where the sender holds no long-term
   secrets.
 
-## Quick start
+## Installation
+
+Install GUN-101-GKP from PyPI:
 
 ```bash
 pip install gun101-gkp
+```
 
+### Bash completion
+
+A Bash completion script is available at
+`scripts/completions/bash/gun101gkp.bash`.
+
+To enable it for the current shell from a source checkout:
+
+```bash
+source scripts/completions/bash/gun101gkp.bash
+```
+
+For persistent per-user completion on systems using `bash-completion`:
+
+```bash
+mkdir -p ~/.local/share/bash-completion/completions
+cp scripts/completions/bash/gun101gkp.bash ~/.local/share/bash-completion/completions/gun101gkp
+```
+
+Start a new Bash session after installing the completion file.
+
+## Quick start
+
+```bash
 # Recipient: generate an identity once
 gun101gkp generate-identity
 

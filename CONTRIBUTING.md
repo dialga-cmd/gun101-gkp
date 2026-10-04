@@ -69,6 +69,14 @@ python -m pip install --upgrade pip
 pip install -e ".[dev]"
 ```
 
+### Testing Bash completion
+
+Bash completion for the `gun101gkp` CLI is available at:
+
+```text
+scripts/completions/bash/gun101gkp.bash
+```
+
 The project uses a `src/` layout. Editable install gives you the `gun101gkp` module and the
 `gun101gkp` command-line tool wired to your checkout, so changes take effect immediately.
 
