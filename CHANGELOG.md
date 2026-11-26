@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No unreleased changes yet. This section documents work in progress and any pull
-requests merged after `3.1.2`.
+### Changed
+
+- Dropped Python 3.10 support; the minimum supported version is now Python 3.11. CI, `tox`,
+  documentation, and type/lint targets were updated to match. Optional type annotations now
+  use `X | None` syntax.
+
+### Security
+
+- Refreshed the CI lockfile to patch `filelock`, `certifi`, `msgpack`, and `setuptools`
+  advisories. `filelock` 4.x requires Python 3.11+, which is now the project minimum.
 
 ## [3.1.2] - 2026-08-09
 

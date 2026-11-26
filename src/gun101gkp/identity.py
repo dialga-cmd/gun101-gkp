@@ -4,7 +4,6 @@
 import base64
 import hashlib
 import os
-from typing import Optional
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -14,7 +13,7 @@ from cryptography.hazmat.primitives.serialization import KeySerializationEncrypt
 from . import config
 
 
-def generate_identity(passphrase: Optional[str] = None) -> str:
+def generate_identity(passphrase: str | None = None) -> str:
     """Generate a new RSA-4096 keypair and store the private key.
 
     Args:
@@ -77,7 +76,7 @@ def generate_identity(passphrase: Optional[str] = None) -> str:
     assert token.startswith(config.TOKEN_PREFIX)  # nosec B101
     return token
 
-def load_private_key(passphrase: Optional[str] = None) -> RSAPrivateKey:
+def load_private_key(passphrase: str | None = None) -> RSAPrivateKey:
     """Load the private key from the stored PEM file.
 
     Args:
@@ -180,7 +179,7 @@ def get_identity_token() -> str:
     token = config.TOKEN_PREFIX + base64.b64encode(public_key_der).decode('ascii')
     return token
 
-def get_identity_fingerprint(token: Optional[str] = None) -> str:
+def get_identity_fingerprint(token: str | None = None) -> str:
     """Compute the SHA-256 fingerprint of a public key.
 
     Args:

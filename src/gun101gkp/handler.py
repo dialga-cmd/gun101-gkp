@@ -4,7 +4,6 @@
 import base64
 import json
 import os
-from typing import Optional
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -101,7 +100,7 @@ def encrypt_for_recipient(file_data: bytes, recipient_token: str) -> bytes:
 
     return json.dumps(container).encode('utf-8')
 
-def decrypt_as_recipient(container_data: bytes, passphrase: Optional[str] = None) -> bytes:
+def decrypt_as_recipient(container_data: bytes, passphrase: str | None = None) -> bytes:
     """Decrypt a container using the recipient's private key.
 
     Args:
